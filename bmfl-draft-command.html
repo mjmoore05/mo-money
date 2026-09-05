@@ -1,0 +1,2595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BMFL — Draft Room + Advisor</title>
+<style>
+  :root{
+    --ink:#0F1518; --panel:#172025; --panel2:#1E2B31; --line:#2B3A41; --lineSoft:#222F35;
+    --text:#E7EDEA; --dim:#89A0A4; --dimmer:#5D7176;
+    --gold:#E9B949; --sage:#63A98C; --red:#D9645A; --amberSoft:#3A3220;
+    --qb:#C77DA0; --rb:#63A98C; --wr:#5B8FD9; --te:#E9B949; --def:#9B8BC4; --k:#7E9296;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --cond:'Barlow Condensed','Inter',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--text);font-family:var(--body);font-size:14px}
+  button{cursor:pointer;border:none;font-family:inherit}
+  input,select,textarea{font-family:inherit}
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:var(--ink)}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding:20px 24px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  h1{font-family:var(--cond);font-size:34px;font-weight:700;margin:2px 0 0;line-height:1}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:6px 11px;border:1px solid;border-radius:999px;font-family:var(--mono)}
+  .dot{width:7px;height:7px;border-radius:4px;display:inline-block;background:currentColor}
+  .ghost{background:transparent;color:var(--text);border:1px solid var(--line);padding:8px 13px;border-radius:6px;font-size:13px}
+  .gold{background:var(--gold);color:var(--ink);padding:8px 13px;border-radius:6px;font-size:13px;font-weight:600}
+  .tiny{background:var(--gold);color:var(--ink);padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600}
+  .tinyghost{background:transparent;color:var(--dim);border:1px solid var(--line);padding:4px 10px;border-radius:4px;font-size:12px}
+
+  .banner{padding:10px 24px;font-size:14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .banner.bad{background:#3A1D1B;color:var(--red)}
+  .banner.warn{background:var(--amberSoft);color:var(--gold)}
+  .banner.ok{background:#172E27;color:var(--sage)}
+  .hidden{display:none!important}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:16px 24px;padding:18px}
+  .panel h3{font-family:var(--cond);font-size:20px;font-weight:600;margin:0;letter-spacing:.02em}
+  .panel .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .muted{color:var(--dim);font-size:13px;line-height:1.6;margin:0 0 12px}
+  code{font-family:var(--mono);font-size:12px;background:var(--panel2);padding:1px 5px;border-radius:3px;color:var(--gold)}
+  textarea{width:100%;min-height:120px;background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:12px;font-size:12px;font-family:var(--mono);margin-bottom:12px;resize:vertical}
+  .fld{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim);font-weight:500}
+  .fld input{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font-size:14px}
+
+  section{padding:18px 24px 4px}
+  .sechead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:12px}
+  h2{font-family:var(--cond);font-size:19px;font-weight:600;margin:0;letter-spacing:.06em;text-transform:uppercase}
+  .stat{font-size:12px;color:var(--dimmer);font-family:var(--mono)}
+
+  /* Ten owners: five and five. auto-fill packed them 6-and-4 at laptop width,
+     which reads as unfinished. Fixed column counts, stepping down on narrower
+     screens so nothing ever squashes. */
+  #board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  @media (max-width:1250px){#board{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media (max-width:1000px){#board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:760px){#board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:480px){#board{grid-template-columns:minmax(0,1fr)}}
+  .owner{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 12px 12px}
+  .owner.over{border-color:var(--red)}
+  .ohead{display:flex;justify-content:space-between;align-items:baseline;width:100%;background:transparent;padding:0;margin-bottom:8px;color:var(--text)}
+  .oname{font-family:var(--cond);font-size:19px;font-weight:600}
+  .ocount{font-family:var(--mono);font-size:11px;color:var(--dimmer)}
+  .track{height:4px;background:var(--lineSoft);border-radius:2px;overflow:hidden}
+  .fill{height:100%;background:var(--sage);transition:width 220ms ease}
+  .fill.over{background:var(--red)}
+  .mrow{display:flex;justify-content:space-between;margin-top:9px}
+  .micro{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dimmer);font-weight:600;margin-bottom:3px}
+  .big{font-family:var(--mono);font-size:19px;font-weight:700;line-height:1}
+  .pips{display:flex;flex-wrap:wrap;gap:3px;margin-top:10px}
+  .pip{font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;border:1px solid var(--line);font-family:var(--mono);color:var(--dimmer)}
+  .pip.on{border-color:transparent;color:var(--ink)}
+  .owner.wide{grid-column:1/-1}
+  .roster{margin-top:10px;border-top:1px solid var(--lineSoft);padding-top:8px}
+  .rrow{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0}
+  .rslot{font-family:var(--mono);font-size:10px;color:var(--dimmer);width:34px;flex-shrink:0;font-weight:600}
+  .rname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rname.rempty{color:var(--dimmer);font-style:italic}
+  .rname.rlbl{color:var(--dim)}
+  .rteam{font-family:var(--mono);font-size:10px;color:var(--dimmer);width:34px;flex-shrink:0;text-align:right}
+  .rprice{font-family:var(--mono);color:var(--gold);font-size:12px;min-width:38px;text-align:right}
+  .dcHead{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dimmer);font-weight:600;margin:12px 0 5px;padding-top:8px;border-top:1px solid var(--lineSoft)}
+  .dcHead:first-child{margin-top:0;padding-top:0;border-top:none}
+  .dcCount{font-family:var(--mono);letter-spacing:0;color:var(--dim);margin-left:4px}
+  .posGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:6px}
+  .posCell{display:flex;align-items:center;gap:5px;background:var(--panel2);border-radius:5px;padding:6px 8px}
+  .posDot{width:7px;height:7px;border-radius:4px;flex-shrink:0}
+  .posN{font-family:var(--mono);font-size:16px;font-weight:700;line-height:1}
+  .posL{font-size:10px;color:var(--dim);font-family:var(--mono)}
+  .posS{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--gold)}
+
+  .cols{display:grid;grid-template-columns:minmax(300px,1fr) minmax(320px,1fr);gap:20px;padding:20px 24px 40px}
+  @media (max-width:860px){.cols{grid-template-columns:1fr}}
+  .search{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:14px;margin-bottom:8px}
+  .posrow{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap}
+  .posbtn{border:1px solid var(--line);background:transparent;color:var(--dim);padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;font-family:var(--mono)}
+  .posbtn.on{background:var(--panel2);color:var(--text)}
+  .list{max-height:460px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  .prow{display:flex;align-items:center;gap:9px;width:100%;padding:8px 11px;border-bottom:1px solid var(--lineSoft);border-left:3px solid var(--line);text-align:left;color:var(--text);background:transparent}
+  .prow:hover{background:var(--panel2)}
+  .prow.on{background:var(--panel2)}
+  .ppos{font-family:var(--mono);font-size:10px;color:var(--dim);width:26px;flex-shrink:0;font-weight:600}
+  .pname{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pteam{color:var(--dimmer);font-size:12px;margin-left:6px}
+  .pproj{font-family:var(--mono);font-size:12px;color:var(--dim);min-width:44px;text-align:right}
+  .poolHead{display:flex;align-items:center;gap:9px;padding:6px 11px;border-left:3px solid transparent;
+            font-family:var(--cond);font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+            color:var(--dimmer);font-weight:600;background:var(--panel);
+            border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;border-left-width:3px}
+  .poolHead .pname{font-size:11px;letter-spacing:.11em}
+  .poolHead .pproj,.poolHead .pval{font-family:var(--cond);font-size:11px;letter-spacing:.11em;
+            color:var(--dimmer);font-weight:600}
+  .srcNote{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;line-height:1.5;
+           color:var(--dimmer);margin:0 0 7px;padding:0 2px}
+  .srcNote .bull{color:var(--gold);flex-shrink:0;font-size:13px;line-height:1.35}
+  .srcNote b{color:var(--dim);font-weight:600}
+  .pdash{color:var(--dimmer);opacity:.5}
+  /* ---- advisor panels ---- */
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:13px 14px}
+  .micro{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dimmer);font-weight:600;margin-bottom:5px}
+  .mbig{font-family:var(--mono);font-size:27px;font-weight:700;line-height:1}
+  .msub{font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.45}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-family:var(--cond);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dimmer);text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);font-weight:600}
+  td{padding:7px 9px;border-bottom:1px solid var(--lineSoft)}
+  td.num{font-family:var(--mono);text-align:right}
+  .wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .scroll{max-height:420px;overflow-y:auto}
+  .pill{font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 6px;border-radius:3px;color:var(--ink)}
+  .hot{color:var(--red);font-weight:600}
+  .soft{color:var(--sage);font-weight:600}
+  .even{color:var(--dim)}
+  .tierbreak td{border-bottom:2px solid var(--gold)}
+  .planCtl{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);
+           border-radius:6px;padding:4px 9px}
+  .planCtl label{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--dim);
+           text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .planCtl input{width:44px;background:var(--ink);color:var(--gold);border:1px solid var(--line);
+           border-radius:4px;padding:3px 5px;font-family:var(--mono);font-size:13px;font-weight:700;text-align:center}
+  .bigBid{font-family:var(--mono);font-size:40px;font-weight:700;line-height:1;margin:2px 0 10px;
+          display:flex;align-items:baseline;gap:11px;flex-wrap:wrap}
+  .xMkt{font-family:var(--body);font-size:12.5px;font-weight:500;color:var(--dim);letter-spacing:0}
+  .whyBox{border-left:2px solid var(--line);padding-left:11px;margin-bottom:4px}
+  .whyRow{display:flex;gap:8px;font-size:12.5px;color:var(--dim);line-height:1.5;padding:2px 0}
+  .whyArrow{flex-shrink:0;font-size:10px;width:11px;line-height:1.6}
+  .whyBind{color:var(--text);margin-top:4px}
+  .ctxBox{border-left:2px solid var(--line);padding-left:11px;margin:2px 0 10px}
+  .ctxRow{font-size:12.5px;color:var(--dim);line-height:1.5;padding:2px 0}
+  .ctxRow b{color:var(--gold)}
+  .byeWarn{background:var(--amberSoft);color:var(--gold);border-radius:6px;padding:8px 10px;
+           font-size:12.5px;line-height:1.5;margin:8px 0 2px}
+  .planLine{font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:6px;margin:2px 0 4px;
+            background:var(--panel2);border-left:3px solid var(--line)}
+  .planLine.hot{border-left-color:var(--red);color:var(--red)}
+  .planLine.soft{border-left-color:var(--sage);color:var(--sage)}
+  .planLine.even{border-left-color:var(--dim);color:var(--dim)}
+  .planWarn{background:#3A1D1B;color:var(--red);border-radius:6px;padding:8px 10px;
+            font-size:12px;line-height:1.5;margin:8px 0 10px}
+  .bandRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 4px}
+  .bandCell{background:var(--panel2);border-radius:6px;padding:9px 10px}
+  .bandN{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+  .bandL{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-top:4px}
+  .bandH{font-size:10.5px;color:var(--dimmer);margin-top:2px;line-height:1.35}
+  .planOver{caption-side:top;text-align:left;background:#3A1D1B;color:var(--red);
+    padding:9px 11px;font-size:12.5px;line-height:1.5;font-weight:500}
+  .bnote{font-size:10.5px;color:var(--dimmer);font-weight:400;margin-top:2px;line-height:1.35}
+  .sbar{height:6px;background:var(--lineSoft);border-radius:3px;overflow:hidden;min-width:70px}
+  .sfill{height:100%;border-radius:3px}
+
+
+  .tag{font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;border:1px solid var(--line);color:var(--dimmer);vertical-align:middle;margin-left:8px}
+  .tag.calc{color:var(--sage);border-color:var(--sage)}
+  .tag.model{color:var(--gold);border-color:var(--gold)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-family:var(--cond);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dimmer);text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);font-weight:600}
+  td{padding:7px 9px;border-bottom:1px solid var(--lineSoft)}
+  td.num{font-family:var(--mono);text-align:right}
+  .wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .scroll{max-height:420px;overflow-y:auto}
+  .pill{font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 6px;border-radius:3px;color:var(--ink)}
+  .hot{color:var(--red);font-weight:600}
+  .soft{color:var(--sage);font-weight:600}
+  .even{color:var(--dim)}
+  .tierbreak td{border-bottom:2px solid var(--gold)}
+  .bnote{font-size:10.5px;color:var(--dimmer);font-weight:400;margin-top:2px;line-height:1.35}
+  .sbar{height:6px;background:var(--lineSoft);border-radius:3px;overflow:hidden;min-width:70px}
+  .sfill{height:100%;border-radius:3px}
+  .planCtl{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);
+           border-radius:6px;padding:4px 9px}
+  .planCtl label{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--dim);
+           text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .planCtl input{width:44px;background:var(--ink);color:var(--gold);border:1px solid var(--line);
+           border-radius:4px;padding:3px 5px;font-family:var(--mono);font-size:13px;font-weight:700;text-align:center}
+  .bigBid{font-family:var(--mono);font-size:40px;font-weight:700;line-height:1;margin:2px 0 10px;
+          display:flex;align-items:baseline;gap:11px;flex-wrap:wrap}
+  .xMkt{font-family:var(--body);font-size:12.5px;font-weight:500;color:var(--dim);letter-spacing:0}
+  .whyBox{border-left:2px solid var(--line);padding-left:11px;margin-bottom:4px}
+  .whyRow{display:flex;gap:8px;font-size:12.5px;color:var(--dim);line-height:1.5;padding:2px 0}
+  .whyArrow{flex-shrink:0;font-size:10px;width:11px;line-height:1.6}
+  .whyBind{color:var(--text);margin-top:4px}
+  .planLine{font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:6px;margin:2px 0 4px;
+            background:var(--panel2);border-left:3px solid var(--line)}
+  .planLine.hot{border-left-color:var(--red);color:var(--red)}
+  .planLine.soft{border-left-color:var(--sage);color:var(--sage)}
+  .planLine.even{border-left-color:var(--dim);color:var(--dim)}
+  .planWarn{background:#3A1D1B;color:var(--red);border-radius:6px;padding:8px 10px;
+            font-size:12px;line-height:1.5;margin:8px 0 10px}
+  .bandRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 4px}
+  .bandCell{background:var(--panel2);border-radius:6px;padding:9px 10px}
+  .bandN{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+  .bandL{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-top:4px}
+  .bandH{font-size:10.5px;color:var(--dimmer);margin-top:2px;line-height:1.35}
+  .lookup{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--lineSoft);font-size:13px}
+  .row:last-child{border-bottom:none}
+  .row .l{color:var(--dim)}
+  .row .r{font-family:var(--mono)}
+  .threat{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-bottom:1px solid var(--lineSoft)}
+  .threat .nm{flex:1;font-family:var(--cond);font-weight:600;letter-spacing:.03em;font-size:15px}
+  .verdict{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1;color:var(--gold)}
+  .empty{padding:22px;color:var(--dim);font-size:13px;line-height:1.6}
+  .ctxBox{border-left:2px solid var(--line);padding-left:11px;margin:2px 0 10px}
+  .ctxRow{font-size:12.5px;color:var(--dim);line-height:1.5;padding:2px 0}
+  .ctxRow b{color:var(--gold)}
+  .byeWarn{background:var(--amberSoft);color:var(--gold);border-radius:6px;padding:8px 10px;
+           font-size:12.5px;line-height:1.5;margin:8px 0 2px}
+  .advCols{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:20px;padding:0 24px}
+  .advErr{background:#3A1D1B;color:var(--red);border-radius:6px;padding:10px 12px;font-size:12.5px;line-height:1.5}
+  .lookup{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .liveBid{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .lbLabel{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dimmer);font-weight:600}
+  .lbInput{display:flex;align-items:center;background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:0 10px}
+  .lbInput input{background:transparent;border:none;color:var(--text);font-family:var(--mono);font-size:20px;font-weight:700;width:74px;padding:6px 4px;outline:none}
+  .verdictBox{border:2px solid;border-radius:8px;padding:12px 14px;margin-bottom:14px;background:var(--panel2)}
+  .verdictWord{font-family:var(--cond);font-size:34px;font-weight:700;letter-spacing:.04em;line-height:1}
+  .verdictWhy{font-size:13px;color:var(--dim);line-height:1.5;margin-top:6px}
+  .flexBox{border:1px solid var(--gold);background:var(--amberSoft);border-radius:8px;padding:11px 13px;margin-bottom:12px}
+  .flexHead{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  .flexBody{font-size:12.5px;color:var(--text);line-height:1.5;margin-top:5px}
+  .flexWarn{font-size:12px;color:var(--red);line-height:1.5;margin-top:7px;padding-top:7px;border-top:1px solid rgba(217,100,90,.35)}
+  .btn.sm.on{background:var(--gold);color:#141a1c;border-color:var(--gold);font-weight:600}
+
+  .prow.kb{background:var(--panel2);box-shadow:inset 3px 0 0 var(--gold)}
+  .lrowEdit{background:var(--panel2);gap:7px}
+  .editOwner{background:var(--ink);color:var(--text);border:1px solid var(--line);
+    border-radius:5px;padding:3px 6px;font-size:12px}
+  .editPriceWrap{display:flex;align-items:center;gap:3px;color:var(--dimmer);font-family:var(--mono);font-size:12px}
+  .editPrice{width:56px;background:var(--ink);color:var(--gold);border:1px solid var(--line);
+    border-radius:5px;padding:3px 6px;font-family:var(--mono);font-size:13px;font-weight:700}
+  .danger{background:var(--red)!important;color:var(--text)!important;border-color:var(--red)!important}
+  .kbHint{font-size:11px;color:var(--dimmer);margin:6px 2px 0;line-height:1.5}
+  .kbHint kbd{font-family:var(--mono);font-size:10px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:4px;padding:1px 5px;color:var(--dim);margin:0 1px}
+  .poolHead+.list{border-radius:0 0 8px 8px;border-top:none}
+  .pval{font-family:var(--mono);font-size:13px;color:var(--gold);font-weight:600;min-width:40px;text-align:right}
+  .empty{padding:22px;color:var(--dim);font-size:13px;line-height:1.6}
+
+  .bidcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .selchip{display:flex;align-items:center;gap:9px;background:var(--panel2);padding:9px 11px;border-radius:6px}
+  .cpos{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink);padding:2px 6px;border-radius:3px}
+  .clear{margin-left:auto;background:transparent;color:var(--dim);font-size:12px;text-decoration:underline}
+  .freerow{display:flex;gap:8px}
+  .freerow input,.freerow select{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font-size:14px}
+  .freerow input{flex:1;min-width:0}
+  .freerow select{width:96px}
+  /* Ten owners, five and five — same shape as the budget rail above.
+     auto-fill was packing these 6-and-4 as well. */
+  .ogrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  @media (max-width:1250px){.ogrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media (max-width:1000px){.ogrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:620px){.ogrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .opick{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--line);
+    background:transparent;color:var(--text);border-radius:6px;padding:7px 8px;font-size:13px;
+    text-align:left;min-width:0;overflow:hidden}
+  .opick>span:first-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .opick.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  .opick:disabled{color:var(--dimmer);cursor:not-allowed}
+  .opick .mm{font-size:11px;font-family:var(--mono);opacity:.85}
+  .pricerow{display:flex;gap:10px;align-items:stretch}
+  .pwrap{display:flex;align-items:center;background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:0 12px;flex:1}
+  .dollar{font-family:var(--mono);font-size:22px;color:var(--dimmer);font-weight:700}
+  #price{background:transparent;border:none;color:var(--gold);font-family:var(--mono);font-size:26px;font-weight:700;width:100%;padding:10px 6px;outline:none}
+  #record{padding:0 22px;border-radius:6px;font-size:15px;font-weight:700;font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;background:var(--gold);color:var(--ink)}
+  #record:disabled{background:var(--panel2);color:var(--dimmer);cursor:not-allowed}
+  #hint{font-size:12.5px;margin-top:10px;line-height:1.5;color:var(--dim)}
+  #hint.ready{color:var(--sage)}
+  #bidmath{font-size:12px;color:var(--dim);font-family:var(--mono);margin-top:8px;padding-top:8px;border-top:1px solid var(--lineSoft);line-height:1.6}
+
+  .loglist{max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  .lrow{display:flex;align-items:center;gap:9px;padding:7px 11px;border-bottom:1px solid var(--lineSoft);font-size:13px}
+  .lnum{font-family:var(--mono);font-size:11px;color:var(--dimmer);width:22px;flex-shrink:0}
+  .lname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lowner{color:var(--dim);font-size:12px;font-family:var(--cond);letter-spacing:.04em;font-weight:600}
+  .lprice{font-family:var(--mono);color:var(--gold);font-weight:600;min-width:42px;text-align:right}
+  .lx{background:transparent;color:var(--dimmer);font-size:17px;line-height:1;padding:0 4px}
+  .yes{background:var(--red);color:var(--text);padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600}
+
+  /* ================= app chrome ================= */
+  body{font-size:14px}
+  .appbar{position:sticky;top:0;z-index:60;background:rgba(15,21,24,.94);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:18px;padding:0 20px;min-height:60px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(145deg,var(--gold),#b98d24);
+    color:#141a1c;font-family:var(--cond);font-weight:700;font-size:15px;letter-spacing:.02em;
+    display:grid;place-items:center;flex-shrink:0}
+  .brand h1{font-family:var(--cond);font-size:20px;font-weight:600;margin:0;line-height:1.1;
+    letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand .sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer);
+    font-weight:600;margin-top:1px}
+  .tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:3px}
+  .tab{background:transparent;color:var(--dim);font-size:13px;font-weight:600;
+    padding:6px 14px;border-radius:6px;white-space:nowrap}
+  .tab.on{background:var(--panel2);color:var(--text)}
+  .tab:hover{color:var(--text)}
+  .spacer{flex:1}
+  .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .btn{background:transparent;color:var(--text);border:1px solid var(--line);
+    padding:7px 13px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap}
+  .btn:hover{border-color:var(--dim)}
+  .btn.primary{background:var(--gold);color:#141a1c;border-color:var(--gold);font-weight:600}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .iconbtn{width:34px;height:34px;border-radius:7px;border:1px solid var(--line);
+    background:transparent;color:var(--dim);display:grid;place-items:center;font-size:15px}
+  .iconbtn:hover{color:var(--text);border-color:var(--dim)}
+  .iconbtn.on{background:var(--panel2);color:var(--gold);border-color:var(--gold)}
+  .menuWrap{position:relative}
+  .menu{position:absolute;right:0;top:42px;min-width:238px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:6px;z-index:70;
+    box-shadow:0 14px 40px rgba(0,0,0,.55)}
+  .menu .mhead{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer);
+    font-weight:700;padding:8px 10px 4px}
+  .menu button{display:flex;width:100%;align-items:center;gap:9px;background:transparent;
+    color:var(--text);font-size:13px;padding:8px 10px;border-radius:6px;text-align:left}
+  .menu button:hover{background:var(--panel2)}
+  .menu .mi{color:var(--dimmer);width:15px;text-align:center;flex-shrink:0;font-size:12px}
+  .menu hr{border:none;border-top:1px solid var(--lineSoft);margin:5px 2px}
+  main{max-width:1500px;margin:0 auto}
+  section{padding:20px 24px 4px}
+  h2{font-size:17px}
+  .panel{border-radius:10px}
+  .owner,.wrap,.lookup,.bidcard,.metric,.list{border-radius:10px}
+  .btn.sm{padding:5px 10px;font-size:12px}
+
+  /* ================= guide ================= */
+  .syncRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .guide{max-width:900px;margin:0 auto;padding:28px 24px 60px}
+  .guide h2{font-family:var(--cond);font-size:24px;letter-spacing:.02em;text-transform:none;
+    margin:34px 0 10px;color:var(--text)}
+  .guide h2:first-child{margin-top:0}
+  .guide h3{font-family:var(--cond);font-size:17px;font-weight:600;letter-spacing:.03em;
+    margin:20px 0 6px;color:var(--gold)}
+  .guide p{color:var(--dim);line-height:1.65;margin:0 0 12px;font-size:14px}
+  .guide li{color:var(--dim);line-height:1.65;margin-bottom:7px}
+  .guide ol,.guide ul{padding-left:20px;margin:0 0 14px}
+  .guide b{color:var(--text)}
+  .guide code{font-family:var(--mono);font-size:12px;background:var(--panel2);
+    padding:2px 6px;border-radius:4px;color:var(--gold)}
+  .gcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;margin:0 0 14px}
+  .gcard.warn{border-left:3px solid var(--gold)}
+  .gcard.stop{border-left:3px solid var(--red)}
+  .gsteps{counter-reset:gs;list-style:none;padding:0}
+  .gsteps li{counter-increment:gs;position:relative;padding-left:38px;margin-bottom:14px}
+  .gsteps li::before{content:counter(gs);position:absolute;left:0;top:0;width:25px;height:25px;
+    border-radius:7px;background:var(--panel2);color:var(--gold);font-family:var(--mono);
+    font-size:12px;font-weight:700;display:grid;place-items:center}
+  .kv{display:grid;grid-template-columns:170px 1fr;gap:6px 16px;font-size:13.5px;margin:0 0 14px}
+  .kv dt{color:var(--gold);font-weight:600}
+  .kv dd{color:var(--dim);margin:0;line-height:1.55}
+  @media (max-width:620px){
+    .kv{grid-template-columns:1fr;gap:2px 0}
+    .kv dd{margin-bottom:10px}
+    .appbar{padding:10px 14px}
+    section,.cols,.advCols{padding-left:14px;padding-right:14px}
+  }
+
+  footer{padding:16px 24px 32px;color:var(--dimmer);font-size:12px;line-height:1.7;border-top:1px solid var(--lineSoft);max-width:760px}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="brand">
+    <div class="mark">BMFL</div>
+    <div>
+      <h1 id="leagueName">Big Money Fantasy League</h1>
+      <div class="sub">Draft room + advisor</div>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab on" data-tab="draft">Draft</button>
+    <button class="tab" data-tab="guide">How to use</button>
+  </nav>
+  <div class="spacer"></div>
+  <div class="actions">
+      <select class="btn" id="mePick" title="Which owner are you? The advisor is written from this seat."></select>
+      <span class="planCtl" title="Your roster shape and how hard the room bids.">
+        <label>Stars<input type="number" id="planStars" min="0" max="6" value="2"></label>
+        <label>2nd<input type="number" id="planSecond" min="0" max="4" value="1"></label>
+        <label>Mids<input type="number" id="planMids" min="0" max="8" value="3"></label>
+        <label>Heat<input type="number" id="planHeat" min="90" max="150" step="5" value="110"></label>
+      </span>
+    <span class="chip" id="saveChip" style="color:var(--dim);border-color:var(--dim)"><span class="dot"></span><span id="saveText">Ready</span></span>
+    <button class="btn primary" data-panel="sync" id="btnShareTop">Share</button>
+    <span class="menuWrap">
+      <button class="iconbtn" id="btnGear" title="Settings, data and exports" aria-label="Settings">&#9881;</button>
+      <div class="menu hidden" id="gearMenu">
+        <div class="mhead">League</div>
+        <button data-panel="setup"><span class="mi">&#9636;</span>Setup &mdash; owners, budget</button>
+        <button data-panel="import" id="btnImport"><span class="mi">&#8681;</span>Player sheet</button>
+        <div class="mhead">Data</div>
+        <button data-panel="sync"><span class="mi">&#8646;</span>Share &amp; sync</button>
+        <hr>
+        <button id="btnJSON"><span class="mi">&#123;&#125;</span>Export JSON &mdash; full state</button>
+        <button id="btnCSV"><span class="mi">&#9776;</span>Export picks CSV</button>
+        <button id="btnRosters"><span class="mi">&#9783;</span>Export rosters CSV</button>
+      </div>
+    </span>
+  </div>
+</header>
+
+<div id="banners"></div>
+<main id="tab-draft">
+
+<!-- panels -->
+<div class="panel hidden" id="panel-import">
+  <div class="top"><h3>Load your player sheet</h3><button class="btn sm" data-close>Close</button></div>
+  <p class="muted">CSV with a header row. Columns named like <code>Player</code>, <code>Pos</code>, <code>Team</code>, <code>Bye</code>, <code>Value</code>, <code>Proj</code>, <code>Rank</code> are picked up automatically. Extras are ignored. None of this is required — you can always type a name by hand.</p>
+  <input type="file" accept=".csv,text/csv" id="fileIn" style="color:var(--dim);font-size:13px" />
+  <div class="muted" style="margin-top:12px">Or paste CSV text — or select a table on a site like FantasyPros, copy, and paste it straight in. Commas and tabs both work.</div>
+  <textarea id="csvPaste" placeholder="Player,Pos,Team,Bye,Value,Proj&#10;Ja'Marr Chase,WR,CIN,10,62,285"></textarea>
+  <button class="btn primary" id="btnLoadCSV">Load players</button>
+</div>
+
+<div class="panel hidden" id="panel-sync">
+  <div class="top"><h3>Share &amp; sync</h3><button class="btn sm" data-close>Close</button></div>
+  <p class="muted">A <b>sync code</b> is the whole draft on one line. Copy it here, paste it into any
+  other copy of either tool, and both are identical. This is how your league's copy of the Draft Room stays current.</p>
+  <div class="syncRow">
+    <button class="btn primary" id="btnShare2">Copy sync code</button>
+    <span class="muted" style="margin:0" id="syncInfo"></span>
+  </div>
+  <div class="muted" style="margin-top:16px">Paste a sync code or a JSON export to load it:</div>
+  <textarea id="restoreText" placeholder="BMFL1|McT^Cory^... &nbsp;or&nbsp; {&quot;version&quot;:1,...}"></textarea>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn primary" id="btnDoRestore">Load this draft</button>
+    <button class="btn" id="btnCopy">Copy current draft as JSON</button>
+  </div>
+  <p class="muted" id="restoreWarn" style="margin-top:12px"></p>
+</div>
+
+<div class="panel hidden" id="panel-setup">
+  <div class="top"><h3>League setup</h3><button class="btn sm" data-close>Close</button></div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <label class="fld">Budget per owner<input type="number" id="cfgBudget" /></label>
+    <label class="fld">Minimum bid<input type="number" id="cfgMin" /></label>
+  </div>
+  <div class="muted" style="margin-top:16px">Owners — one per line. Renaming an owner after picks are recorded will orphan that owner's picks.</div>
+  <textarea id="cfgOwners" style="min-height:200px"></textarea>
+  <div class="muted" id="rosterNote"></div>
+</div>
+
+<section>
+  <div class="sechead"><h2>Budget rail</h2><div class="stat" id="boardStat"></div></div>
+  <div id="board"></div>
+</section>
+
+<section>
+  <div class="sechead"><h2>Market<span class="tag calc">arithmetic</span></h2><div class="stat" id="mktStat"></div></div>
+  <div class="metrics" id="metrics"></div>
+</section>
+
+<div class="cols">
+  <div>
+    <div class="sechead"><h2>Player pool</h2><div class="stat" id="poolStat"></div></div>
+    <input class="search" id="search" placeholder="Search player or team…" />
+    <div class="posrow" id="posRow"></div>
+    <div class="srcNote" id="poolSrc"></div>
+    <div class="poolHead">
+      <span class="ppos">POS</span>
+      <span class="pname">PLAYER</span>
+      <span class="pproj" title="Projected fantasy points per game in BMFL scoring (half-PPR). Blank where no projection exists.">PTS/GM</span>
+      <span class="pval" title="Estimated auction value for this league: 10 teams, $200, half-PPR, no kicker.">EST $</span>
+    </div>
+    <div class="list" id="pool"></div>
+    <div class="kbHint"><kbd>/</kbd> search &middot; <kbd>&uarr;</kbd><kbd>&darr;</kbd> move &middot;
+      <kbd>Enter</kbd> pick player &middot; <kbd>1</kbd>&ndash;<kbd>0</kbd> owner &middot;
+      <kbd>Enter</kbd> record. Mouse works exactly as before.</div>
+  </div>
+
+  <div>
+    <div class="sechead" ><h2>Bid check<span class="tag model">model</span></h2><div class="stat">enter what the bidding is at</div></div>
+    <div class="liveBid">
+      <span class="lbLabel">Bidding is at</span>
+      <span class="lbInput"><span class="dollar">$</span><input id="curBid" type="number" min="0" step="1" placeholder="—"></span>
+      <button class="btn sm" id="btnClearBid">clear</button>
+      <span style="flex:1"></span>
+      <button class="btn sm" id="btnFlex" title="Ignore the budget plan for this one player.">Flex</button>
+    </div>
+    <div class="lookup" id="lookup"></div>
+
+    <div class="sechead" style="margin-top:26px"><h2>Record the winning bid</h2></div>
+    <div class="bidcard">
+      <div class="micro">Player</div>
+      <div id="playerSlot"></div>
+
+      <div class="micro" style="margin-top:18px">Winning owner</div>
+      <div class="ogrid" id="ownerGrid"></div>
+
+      <div class="micro" style="margin-top:18px">Winning bid</div>
+      <div class="pricerow">
+        <div class="pwrap"><span class="dollar">$</span><input id="price" type="number" min="1" /></div>
+        <button id="record">Record pick</button>
+      </div>
+      <div id="hint"></div>
+      <div id="bidmath"></div>
+    </div>
+
+    <div class="sechead" style="margin-top:26px"><h2>Pick log</h2><div class="stat">source of truth · newest first</div></div>
+    <div class="loglist" id="log"></div>
+  </div>
+</div>
+
+<section>
+  <div class="sechead"><h2>Budget plan<span class="tag model">your plan</span></h2><div class="stat" id="bpStat"></div></div>
+  <div class="wrap"><table id="budgetPlan"></table></div>
+</section>
+
+<div class="advCols">
+  <div>
+    <div class="sechead"><h2>Your position<span class="tag calc">arithmetic</span></h2></div>
+    <div class="lookup" id="mine"></div>
+    <div class="sechead" style="margin-top:22px"><h2>In reach<span class="tag calc">arithmetic</span></h2><div class="stat">moves every time you buy</div></div>
+    <div class="wrap"><table id="reach"></table></div>
+  </div>
+  <div>
+    <div class="sechead"><h2>Nominate these<span class="tag calc">arithmetic</span></h2><div class="stat">drains rivals</div></div>
+    <div class="wrap"><table id="noms"></table></div>
+  </div>
+</div>
+
+<section>
+  <div class="sechead"><h2>Standings<span class="tag model">model</span></h2><div class="stat" id="stStat"></div></div>
+  <div class="wrap"><table id="standings"></table></div>
+</section>
+
+<section>
+  <div class="sechead"><h2>Positional pressure<span class="tag calc">arithmetic</span></h2><div class="stat">demand = unfilled starting slots</div></div>
+  <div class="wrap"><table id="pressure"></table></div>
+</section>
+
+<footer id="method" style="border-top:1px solid var(--lineSoft)"></footer>
+
+</main>
+<div id="tab-guide" class="hidden"><div class="guide">
+<h2>What this is</h2>
+<p>A single tool for running your auction: it records every pick and, from that same log, tells you what each player is worth to you and whether to keep bidding. Nothing needs the internet and nothing is stored anywhere but this browser.</p>
+<div class="gcard warn">
+  <p style="margin:0"><b>The one rule:</b> the pick log is the only thing that matters. Every budget,
+  roster and recommendation on screen is recalculated from it, so nothing can drift out of step with
+  what actually happened. Protect the pick log and everything else takes care of itself.</p>
+</div>
+
+<h2>Quick start</h2>
+<ol class="gsteps">
+  <li><b>Check the setup.</b> Gear icon &rarr; Setup. Confirm the ten owner names, the $200 budget and
+      the $1 minimum bid. Do this before pick one — renaming an owner mid-draft orphans their picks.</li>
+  <li><b>Player list is already loaded.</b> 215 players with values built for this league. You only need
+      Gear &rarr; Player sheet if you want to load your own CSV instead.</li>
+  <li><b>Record a pick.</b> Click the player in the pool (or type any name), tap the winning owner,
+      type the price, press Enter.</li>
+  <li><b>Watch the save chip.</b> Top right. Green "Saved" after every pick. If it ever goes red, stop
+      and export before entering anything else.</li>
+  <li><b>Export every ten picks.</b> The tool nags you. Let it.</li>
+</ol>
+
+<h2>Reading the advisor</h2>
+<p>Everything is labelled <span class="tag calc">arithmetic</span> or <span class="tag model">model</span>.
+Arithmetic follows from the picks and involves no judgement. Model rests on assumptions that are stated
+next to the number. Argue with the model panels; trust the arithmetic ones.</p>
+
+<h3>Bid check — the panel you use most</h3>
+<p>Click a player, then type what the bidding is currently at. You get a call:</p>
+<dl class="kv">
+  <dt>BID $22</dt><dd>Go one more. Shows how much headroom is left and what winning leaves you per remaining slot.</dd>
+  <dt>Last call</dt><dd>The next bid is at your ceiling. Win it here or let it go — do not chase past this.</dd>
+  <dt>PASS</dt><dd>Past your number, with how far past and who is likely to take him instead.</dd>
+</dl>
+<p>Above the verdict sits your <b>bid-to</b> number and the multiple of market it represents, with every
+reason the premium moved off 1.00&times; listed underneath — positional squeeze, a tier cliff, what the
+room has actually been paying.</p>
+
+<h3>The three ceilings</h3>
+<dl class="kv">
+  <dt>Balanced</dt><dd>Pay this and every remaining slot still fills at market. No concentration.</dd>
+  <dt>Your plan</dt><dd>Built from your budget buckets — finishes the anchors and mid starters you still
+    owe yourself, then goes cheap.</dd>
+  <dt>Hard cap</dt><dd>Pure arithmetic: your money minus $1 for each remaining slot. Not advice.</dd>
+</dl>
+<p>The headline number is the smaller of what he is worth and what you can afford, and the panel says
+which one is binding — including your top-star ceiling of $55.</p>
+
+<h3>Budget plan</h3>
+<p>Your buckets, tracked live. Picks fall into buckets by price, so the panel shows the shape of your
+roster rather than what you meant to do. The <b>projected leftover</b> row is the one to watch: over $5
+and you are set to walk out with money you could have spent.</p>
+
+<h3>Market</h3>
+<p><b>Inflation</b> compares money still unspent against value still on the board. When the room overpays
+early, everything left gets cheaper and the tool reprices it. <b>Last 12 picks</b> shows what the room
+actually paid against par — when the two disagree, believe this one.</p>
+
+<h3>Nominate these</h3>
+<p>Ranked by <b>drain</b>: market price times the number of rivals who still need that position and can
+afford him. Top rows are positions you do not need — throw those out. Rows flagged red are ones you do
+need; stay quiet about those.</p>
+
+<h3>Standings</h3>
+<p>Projected points per week from each owner's current starting nine, with empty slots valued at
+replacement so a half-built roster is compared fairly. This is the only panel that answers "am I winning".</p>
+
+<h2>Recording picks</h2>
+<h3>A player who is not in the list</h3>
+<p>Type the name in the bid panel, pick the position from the dropdown, record as normal. The player
+list is a convenience, never a requirement — nothing breaks.</p>
+<h3>Fixing a mistake</h3>
+<p>Every row in the pick log has an <code>&times;</code>. Click it, then click <b>remove</b> to confirm.
+You can remove any pick, not just the last one; the remaining picks renumber and every total
+recalculates. A typo on pick 12 does not mean unwinding thirty picks.</p>
+<h3>What the pool columns mean</h3>
+<dl class="kv">
+  <dt>PTS/GM</dt><dd>Projected fantasy points per game in this league's scoring — half PPR, 4-point
+    passing touchdowns. A dash means the player came from the ADP list with no projection behind him.</dd>
+  <dt>EST $</dt><dd>Auction value computed for 10 teams, $200, half PPR, no kicker. Not what he will
+    go for — what he is worth.</dd>
+</dl>
+
+<h2>Sharing and syncing</h2>
+<p>Use the <b>Share</b> button in the app bar. It copies the entire draft as a single line of text.
+Anyone paste it into their copy of either tool and they are exactly current.</p>
+<div class="gcard">
+  <p style="margin:0 0 8px"><b>The protocol that avoids arguments:</b></p>
+  <ul style="margin:0">
+    <li>One person enters every pick. Everyone else is a mirror.</li>
+    <li>That person posts a sync code to the league chat every ten picks or so.</li>
+    <li>If their laptop dies, the last posted code becomes the new master.</li>
+  </ul>
+</div>
+<p>Loading a sync code <b>replaces</b> the draft in that copy — it does not merge. That is deliberate:
+merging two versions of the truth is exactly the ambiguity worth avoiding. Check the pick count in the
+confirmation message; if it is lower than you expected, you loaded an old code.</p>
+
+<h2>Exporting</h2>
+<dl class="kv">
+  <dt>Copy sync code</dt><dd>The whole draft on one line. For sharing and for moving between the two tools.</dd>
+  <dt>Export JSON</dt><dd>Complete state. The only format that restores everything including settings.</dd>
+  <dt>Export picks CSV</dt><dd>One row per pick in draft order. The audit trail.</dd>
+  <dt>Export rosters CSV</dt><dd>Team by team, slot by slot, with totals. <b>This is the one you key into Yahoo.</b></dd>
+</dl>
+
+<h2>If something goes wrong</h2>
+<div class="gcard stop">
+  <p style="margin:0 0 8px"><b>Save chip turns red.</b> Export JSON immediately, before entering another
+  pick. Your picks are still on screen — they just are not written to disk.</p>
+  <p style="margin:0"><b>Browser closes or crashes.</b> Reopen the file. Everything up to the last saved
+  pick is there. Five rolling snapshots cover roughly the last twenty-five picks.</p>
+</div>
+<p><b>Moving the file after the draft orphans the saved picks.</b> The browser keys storage to the file's
+location. Your exports travel; the saved state does not. Pick a folder before draft day and leave it there.</p>
+<p><b>Keep a paper log at the table.</b> No browser tool is proof against a spilled drink, and reconciling
+against a written list takes seconds.</p>
+
+<h2>Settings in the app bar</h2>
+<dl class="kv">
+  <dt>Owner</dt><dd>Which seat the advice is written from. Set this to yourself.</dd>
+  <dt>Stars / Mids</dt><dd>Your roster shape. These reshape the budget buckets directly — slots always
+    sum to 15. Defaults of 2 and 4 reproduce the plan: 2 anchors $100&ndash;115, 1 second-tier $30&ndash;35,
+    4 mids $40&ndash;50, QB $1&ndash;10, DEF $1, 6 bench $6&ndash;12.</dd>
+  <dt>Heat</dt><dd>How hard your league bids relative to fair value. 110 is set for a room that pays over
+    the odds at the top. The tool also measures this from the last twelve picks on its own.</dd>
+</dl>
+
+<h2>Where the numbers came from</h2>
+<p>215 players. Projections are half PPR and were verified against this league's exact scoring to within
+0.4 points across a full season. Auction values use value-based drafting with replacement levels set by
+<i>this</i> league — 10 teams, no kicker — which is what a generic 12-team sheet gets wrong. ADP comes from
+3,140 ten-team half-PPR mock drafts.</p>
+<p>The <b>Source</b> column in the exported CSV tells you what is behind each row: <code>exact</code>
+verified stat lines, <code>fitted</code> calibrated to about half a point per game, <code>noconv</code>
+uncalibrated QB and DEF, <code>ranked</code> and <code>adp</code> real players with a rank-derived price
+and no projection.</p>
+<div class="gcard stop">
+  <p style="margin:0">Caps and settings were tuned by simulating drafts against a room that bids
+  aggressively at the top. The rival behaviour in those simulations is a model, not your league. Treat
+  the settings as a good starting point, not gospel — and override any number when you know something
+  the tool does not.</p>
+</div>
+</div></div>
+<footer>
+  Saved automatically after every pick, with five rolling snapshots. That is not a substitute for exporting.
+  Export at least every 10 picks and keep a paper log at the table.
+</footer>
+
+<script>
+/* =================================================================
+   Big Money Fantasy League — Auction Draft Room (standalone)
+
+   The pick log is the only stored data. Rosters, budgets, and max
+   bids are recomputed from it on every render, so the summaries can
+   never drift out of sync with the picks.
+   ================================================================= */
+
+var STATE_KEY='bmfl-command-v1', PLAYERS_KEY='bmfl-command-players-v1', SNAP='bmfl-command-snap-', SNAPN=5;
+
+var START_SLOTS=[
+  {id:'QB',label:'QB',el:['QB']},
+  {id:'RB1',label:'RB',el:['RB']},
+  {id:'RB2',label:'RB',el:['RB']},
+  {id:'WR1',label:'WR',el:['WR']},
+  {id:'WR2',label:'WR',el:['WR']},
+  {id:'WR3',label:'WR',el:['WR']},
+  {id:'TE',label:'TE',el:['TE']},
+  {id:'FLEX',label:'FLX',el:['WR','RB','TE']},
+  {id:'DEF',label:'DEF',el:['DEF']}
+];
+var BENCH=6, ROSTER=START_SLOTS.length+BENCH;
+var POSC={QB:'var(--qb)',RB:'var(--rb)',WR:'var(--wr)',TE:'var(--te)',DEF:'var(--def)',K:'var(--k)'};
+
+var DEFAULT_CFG={
+  leagueName:'Big Money Fantasy League',
+  owners:['McT','Cory','Jake','Daniel','Casey','F.J.','Joel D','jmill','jasonG','Mike'],
+  budget:200, minBid:1
+};
+
+var config=JSON.parse(JSON.stringify(DEFAULT_CFG));
+var playerSrc='built-in';
+var picks=[], players=[];
+/* --- advisor state. Read-only over the pick log. --- */
+var me='Mike';
+var plan={stars:2, second:1, mids:3, heat:1.10};
+/* Flex: a deliberate override for ONE player. Ignores the budget plan and
+   bids to the bare $1-per-slot floor. Reset whenever the target changes so
+   it can never stay on by accident. */
+var flexOn=false;
+var sel=null, bidOwner=null, posFilter='ALL', query='', freePos='RB';
+var confirmId=null, expanded=null, snapIdx=0, lastExport=0, nagDismissed=0;
+var kbIdx=-1;          /* highlighted row in the pool, keyboard only */
+var editId=null;       /* pick currently being edited in the log */
+var pendingRestore=null;  /* a sync/JSON load waiting on confirmation */
+
+/* ---------------------- storage (dual mode) ---------------------- */
+/* Prefers the artifact storage API when present; falls back to
+   localStorage when the file is opened directly from disk.        */
+var store={
+  get:function(k){
+    if(window.storage&&window.storage.get){
+      return window.storage.get(k).then(function(r){return r?r.value:null;}).catch(function(){return null;});
+    }
+    try{return Promise.resolve(localStorage.getItem(k));}catch(e){return Promise.resolve(null);}
+  },
+  set:function(k,v){
+    if(window.storage&&window.storage.set) return window.storage.set(k,v);
+    try{localStorage.setItem(k,v);return Promise.resolve(true);}catch(e){return Promise.reject(e);}
+  }
+};
+
+/* --------------------------- helpers ----------------------------- */
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function money(n){return '$'+Math.round(Number(n)||0).toLocaleString()}
+function nkey(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function normPos(r){
+  if(!r) return '';
+  var s=String(r).toUpperCase().replace(/[^A-Z]/g,'');
+  if(s==='DST'||s==='DEF'||s==='DEFENSE'||s==='D') return 'DEF';
+  if(s.indexOf('QB')===0) return 'QB';
+  if(s.indexOf('RB')===0) return 'RB';
+  if(s.indexOf('WR')===0) return 'WR';
+  if(s.indexOf('TE')===0) return 'TE';
+  if(s.indexOf('PK')===0||s.indexOf('K')===0) return 'K';
+  if(s.indexOf('D')===0) return 'DEF';
+  return s.slice(0,3);
+}
+
+/* ---- built-in player board -------------------------------------
+   151 players, half-PPR, priced for 10 teams / $200 / no kicker.
+   Source tag per row: exact | fitted | noconv | ranked.
+   Used only when no sheet has been imported; an import overrides it. */
+var BUILTIN_RAW=[["Jahmyr Gibbs","RB","DET","6",74,"20.4","walterpicks"],["Bijan Robinson","RB","ATL","11",70,"19.8","walterpicks"],["Christian McCaffrey","RB","SF","8",62,"18.8","walterpicks"],["Ja'Marr Chase","WR","CIN","6",59,"16.7","walterpicks"],["Puka Nacua","WR","LAR","11",57,"16.3","walterpicks"],["Jonathan Taylor","RB","IND","13",54,"17.7","walterpicks"],["Jaxon Smith-Njigba","WR","SEA","11",54,"15.9","walterpicks"],["Amon-Ra St. Brown","WR","DET","6",50,"15.4","walterpicks"],["James Cook III","RB","BUF","7",49,"16.9","walterpicks"],["CeeDee Lamb","WR","DAL","14",48,"15.1","walterpicks"],["Justin Jefferson","WR","MIN","6",48,"15.1","walterpicks"],["Derrick Henry","RB","BAL","13",39,"15.5","walterpicks"],["Kenneth Walker III","RB","KC","5",36,"15.2","walterpicks"],["Drake London","WR","ATL","11",36,"13.4","walterpicks"],["Brock Bowers","TE","LV","13",36,"12.5","walterpicks"],["Omarion Hampton","RB","LAC","7",34,"14.9","walterpicks"],["Josh Allen","QB","BUF","7",33,"22.2","walterpicks"],["Saquon Barkley","RB","PHI","10",33,"14.8","walterpicks"],["Chase Brown","RB","CIN","6",32,"14.6","walterpicks"],["George Pickens","WR","DAL","14",31,"12.7","walterpicks"],["Nico Collins","WR","HOU","8",31,"12.7","walterpicks"],["Trey McBride","TE","ARI","14",31,"11.9","walterpicks"],["A.J. Brown","WR","NE","11",30,"12.6","walterpicks"],["Javonte Williams","RB","DAL","14",29,"14.2","walterpicks"],["Ashton Jeanty","RB","LV","13",29,"14.2","walterpicks"],["De'Von Achane","RB","MIA","6",28,"14.1","walterpicks"],["Travis Etienne Jr.","RB","NO","8",26,"13.8","walterpicks"],["Malik Nabers","WR","NYG","8",26,"12.0","walterpicks"],["Colston Loveland","TE","CHI","10",26,"11.1","walterpicks"],["Jeremiyah Love","RB","ARI","14",25,"13.6","walterpicks"],["Tee Higgins","WR","CIN","6",25,"11.9","walterpicks"],["Tetairoa McMillan","WR","CAR","5",25,"11.9","walterpicks"],["DeVonta Smith","WR","PHI","10",25,"11.9","walterpicks"],["Chris Olave","WR","NO","8",25,"11.9","walterpicks"],["Rashee Rice","WR","KC","5",24,"11.8","walterpicks"],["Ladd McConkey","WR","LAC","7",23,"11.6","walterpicks"],["Emeka Egbuka","WR","TB","10",22,"11.5","walterpicks"],["Zay Flowers","WR","BAL","13",22,"11.5","walterpicks"],["Jameson Williams","WR","DET","6",20,"11.2","walterpicks"],["Kyren Williams","RB","LAR","11",19,"12.8","walterpicks"],["D'Andre Swift","RB","CHI","10",18,"12.6","walterpicks"],["Garrett Wilson","WR","NYJ","13",18,"10.9","walterpicks"],["Christian Watson","WR","GB","11",17,"10.8","walterpicks"],["Terry McLaurin","WR","WAS","7",17,"10.8","walterpicks"],["Jaylen Waddle","WR","DEN","10",16,"10.7","walterpicks"],["Tucker Kraft","TE","GB","11",16,"9.8","walterpicks"],["Lamar Jackson","QB","BAL","13",15,"19.7","walterpicks"],["Breece Hall","RB","NYJ","13",15,"12.3","walterpicks"],["Cam Skattebo","RB","NYG","8",15,"12.2","walterpicks"],["Bhayshul Tuten","RB","JAX","7",15,"12.2","walterpicks"],["Davante Adams","WR","LAR","11",15,"10.6","walterpicks"],["Marvin Harrison Jr.","WR","ARI","14",15,"10.5","walterpicks"],["Parker Washington","WR","JAX","7",15,"10.5","walterpicks"],["Rome Odunze","WR","CHI","10",15,"10.5","walterpicks"],["Mike Evans","WR","SF","8",14,"10.4","walterpicks"],["Tyler Warren","TE","IND","13",14,"9.5","walterpicks"],["Drake Maye","QB","NE","11",13,"19.3","walterpicks"],["Bucky Irving","RB","TB","10",13,"11.9","walterpicks"],["David Montgomery","RB","HOU","8",13,"11.9","walterpicks"],["Luther Burden III","WR","CHI","10",13,"10.2","walterpicks"],["Carnell Tate","WR","TEN","9",13,"10.2","walterpicks"],["Jayden Daniels","QB","WAS","7",12,"19.2","walterpicks"],["Joe Burrow","QB","CIN","6",11,"19.1","walterpicks"],["Jayden Reed","WR","GB","11",11,"10.0","walterpicks"],["George Kittle","TE","SF","8",11,"9.1","walterpicks"],["Kyle Pitts Sr.","TE","ATL","11",11,"9.1","walterpicks"],["Caleb Williams","QB","CHI","10",10,"18.9","walterpicks"],["Sam LaPorta","TE","DET","6",10,"9.0","walterpicks"],["Jalen Hurts","QB","PHI","10",8,"18.7","walterpicks"],["DJ Moore","WR","BUF","7",8,"9.6","walterpicks"],["Travis Kelce","TE","KC","5",8,"8.7","walterpicks"],["Jadarian Price","RB","SEA","11",7,"11.2","walterpicks"],["Rico Dowdle","RB","PIT","9",7,"11.2","walterpicks"],["Harold Fannin Jr.","TE","CLE","11",7,"8.5","walterpicks"],["Dalton Kincaid","TE","BUF","7",7,"8.5","walterpicks"],["Rhamondre Stevenson","RB","NE","11",6,"11.0","walterpicks"],["Jaylen Warren","RB","PIT","9",5,"10.9","walterpicks"],["LA Rams Defense","DEF","LAR","11",5,"5.8","walterpicks"],["Houston Defense","DEF","HOU","8",5,"5.8","walterpicks"],["Justin Herbert","QB","LAC","7",3,"18.0","walterpicks"],["Quinshon Judkins","RB","CLE","11",3,"10.6","walterpicks"],["DK Metcalf","WR","PIT","9",3,"8.9","walterpicks"],["Brian Thomas Jr.","WR","JAX","7",3,"8.9","walterpicks"],["Seattle Defense","DEF","SEA","11",3,"5.6","walterpicks"],["Philadelphia Defense","DEF","PHI","10",3,"5.6","walterpicks"],["Minnesota Defense","DEF","MIN","6",3,"5.6","walterpicks"],["Trevor Lawrence","QB","JAX","7",2,"17.9","walterpicks"],["Dak Prescott","QB","DAL","14",2,"17.9","walterpicks"],["Jaxson Dart","QB","NYG","8",2,"17.8","walterpicks"],["Michael Pittman Jr.","WR","PIT","9",2,"8.7","walterpicks"],["Isaiah Likely","TE","NYG","8",2,"7.9","walterpicks"],["Denver Defense","DEF","DEN","10",2,"5.5","walterpicks"],["Cleveland Defense","DEF","CLE","11",2,"5.4","walterpicks"],["LA Chargers Defense","DEF","LAC","7",2,"5.4","walterpicks"],["Brock Purdy","QB","SF","8",1,"17.7","walterpicks"],["Patrick Mahomes","QB","KC","5",1,"17.5","walterpicks"],["Kyler Murray","QB","MIN","6",1,"17.5","walterpicks"],["Jared Goff","QB","DET","6",1,"17.3","walterpicks"],["Bo Nix","QB","DEN","10",1,"17.1","walterpicks"],["Tyler Shough","QB","NO","8",1,"17.1","walterpicks"],["Jordan Love","QB","GB","11",1,"17.0","walterpicks"],["Malik Willis","QB","MIA","6",1,"17.0","walterpicks"],["Baker Mayfield","QB","TB","10",1,"16.3","walterpicks"],["Matthew Stafford","QB","LAR","11",1,"16.3","walterpicks"],["Sam Darnold","QB","SEA","11",1,"15.6","walterpicks"],["C.J. Stroud","QB","HOU","8",1,"15.1","walterpicks"],["Daniel Jones","QB","IND","13",1,"14.9","walterpicks"],["Jacoby Brissett","QB","ARI","14",1,"14.3","walterpicks"],["Cam Ward","QB","TEN","9",1,"13.5","walterpicks"],["Aaron Rodgers","QB","PIT","9",1,"13.5","walterpicks"],["Tua Tagovailoa","QB","ATL","11",1,"13.5","walterpicks"],["Bryce Young","QB","CAR","5",1,"13.2","walterpicks"],["Geno Smith","QB","NYJ","13",1,"12.7","walterpicks"],["TreVeyon Henderson","RB","NE","11",1,"10.3","walterpicks"],["MarShawn Lloyd","RB","GB","11",1,"9.6","walterpicks"],["Jonathon Brooks","RB","CAR","5",1,"9.5","walterpicks"],["Jordan Mason","RB","MIN","6",1,"9.5","walterpicks"],["Blake Corum","RB","LAR","11",1,"9.3","walterpicks"],["Deshaun Watson","QB","CLE","11",1,"9.0","walterpicks"],["Chuba Hubbard","RB","CAR","5",1,"8.9","walterpicks"],["Tony Pollard","RB","TEN","9",1,"8.7","walterpicks"],["Alec Pierce","WR","IND","13",1,"8.6","walterpicks"],["Jakobi Meyers","WR","JAX","7",1,"8.6","walterpicks"],["Chris Rodriguez Jr.","RB","JAX","7",1,"8.5","walterpicks"],["Courtland Sutton","WR","DEN","10",1,"8.5","walterpicks"],["Stefon Diggs","WR","WAS","7",1,"8.5","walterpicks"],["Kyle Monangai","RB","CHI","10",1,"8.4","walterpicks"],["Jordan Addison","WR","MIN","6",1,"8.4","walterpicks"],["De'Zhaun Stribling","WR","SF","8",1,"8.4","walterpicks"],["Chris Godwin Jr.","WR","TB","10",1,"8.3","walterpicks"],["Quentin Johnston","WR","LAC","7",1,"8.3","walterpicks"],["Rachaad White","RB","WAS","7",1,"8.2","walterpicks"],["Kenneth Gainwell","RB","TB","10",1,"8.1","walterpicks"],["Jalen Coker","WR","CAR","5",1,"8.0","walterpicks"],["Josh Downs","WR","IND","13",1,"7.9","walterpicks"],["Matthew Golden","WR","GB","11",1,"7.9","walterpicks"],["J.K. Dobbins","RB","DEN","10",1,"7.8","walterpicks"],["RJ Harvey","RB","DEN","10",1,"7.8","walterpicks"],["Wan'Dale Robinson","WR","TEN","9",1,"7.8","walterpicks"],["Michael Wilson","WR","ARI","14",1,"7.8","walterpicks"],["KC Concepcion","WR","CLE","11",1,"7.8","walterpicks"],["Makai Lemon","WR","PHI","10",1,"7.7","walterpicks"],["Dallas Goedert","TE","PHI","10",1,"7.7","walterpicks"],["Fernando Mendoza","QB","LV","13",1,"7.6","walterpicks"],["Xavier Worthy","WR","KC","5",1,"7.6","walterpicks"],["Mark Andrews","TE","BAL","13",1,"7.6","walterpicks"],["Juwan Johnson","TE","NO","8",1,"7.6","walterpicks"],["Woody Marks","RB","HOU","8",1,"7.2","walterpicks"],["Terrance Ferguson","TE","LAR","11",1,"7.2","walterpicks"],["Aaron Jones Sr.","RB","MIN","6",1,"6.9","walterpicks"],["Denzel Boston","WR","CLE","11",1,"6.9","walterpicks"],["Jake Ferguson","TE","DAL","14",1,"6.9","walterpicks"],["Tyler Allgeier","RB","ARI","14",1,"6.8","walterpicks"],["Khalil Shakir","WR","BUF","7",1,"6.7","walterpicks"],["Jalen Nailor","WR","LV","13",1,"6.7","walterpicks"],["Jordyn Tyson","WR","NO","8",1,"6.7","walterpicks"],["Brenton Strange","TE","JAX","7",1,"6.7","walterpicks"],["Dalton Schultz","TE","HOU","8",1,"6.7","walterpicks"],["Romeo Doubs","WR","NE","11",1,"6.5","walterpicks"],["Rashid Shaheed","WR","SEA","11",1,"6.4","walterpicks"],["Hunter Henry","TE","NE","11",1,"6.4","walterpicks"],["T.J. Hockenson","TE","MIN","6",1,"6.3","walterpicks"],["Kirk Cousins","QB","LV","13",1,"6.1","walterpicks"],["Tyjae Spears","RB","TEN","9",1,"6.1","walterpicks"],["Ryan Flournoy","WR","DAL","14",1,"6.1","walterpicks"],["Pat Bryant","WR","DEN","10",1,"6.1","walterpicks"],["Deebo Samuel Sr.","WR","SF","8",1,"6.1","walterpicks"],["Chig Okonkwo","TE","WAS","7",1,"6.0","walterpicks"],["Caleb Douglas","WR","MIA","6",1,"5.8","walterpicks"],["Kayshon Boutte","WR","HOU","8",1,"5.8","walterpicks"],["Gunnar Helm","TE","TEN","9",1,"5.8","walterpicks"],["Keenan Allen","WR","IND","13",1,"5.7","walterpicks"],["Kenyon Sadiq","TE","NYJ","13",1,"5.5","walterpicks"],["Adonai Mitchell","WR","NYJ","13",1,"5.4","walterpicks"],["Tre Tucker","WR","LV","13",1,"5.4","walterpicks"],["Greg Dulcich","TE","MIA","6",1,"5.3","walterpicks"],["Baltimore Defense","DEF","BAL","13",1,"5.3","walterpicks"],["New England Defense","DEF","NE","11",1,"5.3","walterpicks"],["Pittsburgh Defense","DEF","PIT","9",1,"5.3","walterpicks"],["Jacory Croskey-Merritt","RB","WAS","7",1,"5.2","walterpicks"],["Ted Hurst","WR","TB","10",1,"5.2","walterpicks"],["Jacksonville Defense","DEF","JAX","7",1,"5.2","walterpicks"],["Keaton Mitchell","RB","LAC","7",1,"5.1","walterpicks"],["Malachi Fields","WR","NYG","8",1,"5.1","walterpicks"],["Calvin Ridley","WR","TEN","9",1,"5.1","walterpicks"],["Cade Otton","TE","TB","10",1,"5.1","walterpicks"],["Green Bay Defense","DEF","GB","11",1,"5.1","walterpicks"],["Kansas City Defense","DEF","KC","5",1,"5.1","walterpicks"],["Detroit Defense","DEF","DET","6",1,"5.1","walterpicks"],["Tre' Harris","WR","LAC","7",1,"5.0","walterpicks"],["Buffalo Defense","DEF","BUF","7",1,"5.0","walterpicks"],["Rashod Bateman","WR","BAL","13",1,"4.9","walterpicks"],["Troy Franklin","WR","DEN","10",1,"4.9","walterpicks"],["Chicago Defense","DEF","CHI","10",1,"4.9","walterpicks"],["NY Giants Defense","DEF","NYG","8",1,"4.9","walterpicks"],["Carolina Defense","DEF","CAR","5",1,"4.9","walterpicks"],["San Francisco Defense","DEF","SF","8",1,"4.9","walterpicks"],["Samaje Perine","RB","CIN","6",1,"4.8","walterpicks"],["Malik Washington","WR","MIA","6",1,"4.8","walterpicks"],["Xavier Hutchinson","WR","HOU","8",1,"4.8","walterpicks"],["Michael Mayer","TE","LV","13",1,"4.8","walterpicks"],["Atlanta Defense","DEF","ATL","11",1,"4.8","walterpicks"],["Jerry Jeudy","WR","CLE","11",1,"4.7","walterpicks"],["New Orleans Defense","DEF","NO","8",1,"4.7","walterpicks"],["Cincinnati Defense","DEF","CIN","6",1,"4.6","walterpicks"],["Tennessee Defense","DEF","TEN","9",1,"4.6","walterpicks"],["Tampa Bay Defense","DEF","TB","10",1,"4.6","walterpicks"],["Malik Davis","RB","DAL","14",1,"4.5","walterpicks"],["Braelon Allen","RB","NYJ","13",1,"4.5","walterpicks"],["Indianapolis Defense","DEF","IND","13",1,"4.5","walterpicks"],["Alvin Kamara","RB","NO","8",1,"4.4","walterpicks"],["AJ Barner","TE","SEA","11",1,"4.4","walterpicks"],["Pat Freiermuth","TE","PIT","9",1,"4.4","walterpicks"],["Las Vegas Defense","DEF","LV","13",1,"4.4","walterpicks"],["Jonah Coleman","RB","DEN","10",1,"4.3","walterpicks"],["Cooper Kupp","WR","SEA","11",1,"4.3","walterpicks"],["Washington Defense","DEF","WAS","7",1,"4.3","walterpicks"],["Miami Defense","DEF","MIA","6",1,"4.3","walterpicks"],["Dylan Sampson","RB","CLE","11",1,"4.2","walterpicks"],["Dontayvion Wicks","WR","PHI","10",1,"4.2","walterpicks"],["Ja'Kobi Lane","WR","BAL","13",1,"4.2","walterpicks"],["Oronde Gadsden","TE","LAC","7",1,"4.2","walterpicks"],["Dallas Defense","DEF","DAL","14",1,"4.2","walterpicks"],["Nicholas Singleton","RB","TEN","9",1,"4.1","walterpicks"],["Zachariah Branch","WR","ATL","11",1,"4.1","walterpicks"],["Devaughn Vele","WR","NO","8",1,"4.1","walterpicks"],["NY Jets Defense","DEF","NYJ","13",1,"4.1","walterpicks"],["Ty Johnson","RB","BUF","7",1,"4.0","walterpicks"],["Mike Gesicki","TE","CIN","6",1,"4.0","walterpicks"],["Arizona Defense","DEF","ARI","14",1,"4.0","walterpicks"],["Justice Hill","RB","BAL","13",1,"3.9","walterpicks"],["Emmett Johnson","RB","KC","5",1,"3.9","walterpicks"],["Chris Bell","WR","MIA","6",1,"3.9","walterpicks"],["Tory Horton","WR","SEA","11",1,"3.9","walterpicks"],["Omar Cooper Jr.","WR","NYJ","13",1,"3.8","walterpicks"],["Jauan Jennings","WR","MIN","6",1,"3.8","walterpicks"],["Isaac TeSlaa","WR","DET","6",1,"3.7","walterpicks"],["Skyler Bell","WR","BUF","7",1,"3.7","walterpicks"],["Cole Kmet","TE","CHI","10",1,"3.7","walterpicks"],["Andrei Iosivas","WR","CIN","6",1,"3.6","walterpicks"],["Colby Parkinson","TE","LAR","11",1,"3.5","walterpicks"],["Zach Charbonnet","RB","SEA","11",1,"3.4","walterpicks"],["Brian Robinson Jr.","RB","ATL","11",1,"3.4","walterpicks"],["Emanuel Wilson","RB","SEA","11",1,"3.4","walterpicks"],["Najee Harris","RB","NYG","8",1,"3.4","walterpicks"],["Jack Bech","WR","LV","13",1,"3.4","walterpicks"],["Evan Engram","TE","DEN","10",1,"3.4","walterpicks"],["Tommy Tremble","TE","CAR","5",1,"3.4","walterpicks"],["Jalen Tolbert","WR","MIA","6",1,"3.3","walterpicks"],["Jalen McMillan","WR","TB","10",1,"3.3","walterpicks"],["Kalif Raymond","WR","CHI","10",1,"3.2","walterpicks"],["Dawson Knox","TE","BUF","7",1,"3.2","walterpicks"],["Xavier Legette","WR","CAR","5",1,"3.1","walterpicks"],["Tyquan Thornton","WR","KC","5",1,"3.1","walterpicks"],["Germie Bernard","WR","PIT","9",1,"3.1","walterpicks"],["Darnell Washington","TE","PIT","9",1,"3.1","walterpicks"],["Cyrus Allen","WR","KC","5",1,"3.0","walterpicks"],["Shedeur Sanders","QB","CLE","11",1,"2.9","walterpicks"],["Mack Hollins","WR","NE","11",1,"2.9","walterpicks"],["David Njoku","TE","LAC","7",1,"2.9","walterpicks"],["Olamide Zaccheaus","WR","ATL","11",1,"2.8","walterpicks"],["Kendrick Bourne","WR","ARI","14",1,"2.8","walterpicks"],["Daniel Bellinger","TE","TEN","9",1,"2.8","walterpicks"],["Mason Taylor","TE","NYJ","13",1,"2.8","walterpicks"],["DeMario Douglas","WR","NE","11",1,"2.7","walterpicks"],["KaVontae Turpin","WR","DAL","14",1,"2.7","walterpicks"],["Antonio Williams","WR","WAS","7",1,"2.7","walterpicks"],["Eli Stowers","TE","PHI","10",1,"2.7","walterpicks"],["Tez Johnson","WR","TB","10",1,"2.6","walterpicks"],["Noah Gray","TE","KC","5",1,"2.6","walterpicks"],["Elijah Arroyo","TE","SEA","11",1,"2.5","walterpicks"],["Charlie Kolar","TE","LAC","7",1,"2.5","walterpicks"],["Ja'Tavion Sanders","TE","CAR","5",1,"1.9","walterpicks"],["Jake Tonges","TE","SF","8",1,"1.9","walterpicks"],["Elijah Higgins","TE","ARI","14",1,"1.9","walterpicks"],["Luke Schoonmaker","TE","DAL","14",1,"1.8","walterpicks"],["Foster Moreau","TE","HOU","8",1,"1.8","walterpicks"],["Cade Stover","TE","HOU","8",1,"1.8","walterpicks"]];
+function builtinPlayers(){
+  return BUILTIN_RAW.map(function(r,i){
+    return {id:'b'+i+'-'+nkey(r[0]),name:r[0],pos:r[1],team:r[2],bye:r[3],
+            value:r[4],raw:r[4],proj:r[5]===''?NaN:Number(r[5]),rank:i+1,src:r[6]};
+  });
+}
+
+/* ------------------------- CSV (no deps) ------------------------- */
+function parseCSV(text){
+  var rows=[],row=[],cur='',q=false,i=0;
+  text=String(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  /* Detect the delimiter from the first line. Copying a table out of a
+     web page yields tabs; a downloaded file yields commas. Both work. */
+  var first=text.split('\n')[0]||'';
+  var D=(first.split('\t').length>first.split(',').length)?'\t':',';
+  for(;i<text.length;i++){
+    var c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=c;
+    } else {
+      if(c==='"') q=true;
+      else if(c===D){row.push(cur);cur='';}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(function(r){return r.some(function(c){return String(c).trim()!==''})});
+}
+function toCSV(rows,headers){
+  var q=function(v){v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  return [headers.join(',')].concat(rows.map(function(r){return headers.map(function(h){return q(r[h])}).join(',')})).join('\n');
+}
+function ingestCSV(text){
+  var rows=parseCSV(text);
+  if(rows.length<2) return flash('bad','Need a header row and at least one player row.');
+  var head=rows[0].map(nkey);
+  var find=function(cands){for(var i=0;i<head.length;i++){if(cands.indexOf(head[i])>-1) return i;} return -1;};
+  var iName=find(['player','name','playername','fullname']);
+  if(iName<0) return flash('bad','No player-name column found. Expected a column called Player or Name.');
+  var iPos=find(['pos','position']), iTeam=find(['team','tm','nflteam']), iBye=find(['bye','byeweek']);
+  var iVal=find(['value','auctionvalue','auction','cost','price','av']);
+  var iProj=find(['proj','projection','projectedpoints','points','fpts','pts']);
+  var iRank=find(['rank','overallrank','adp','ovr']);
+  var num=function(v){var n=Number(String(v==null?'':v).replace(/[$,]/g,''));return isFinite(n)?n:NaN;};
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row=rows[r], name=(row[iName]||'').trim();
+    if(!name) continue;
+    out.push({
+      id:'p'+r+'-'+nkey(name),
+      name:name,
+      pos:normPos(iPos>-1?row[iPos]:''),
+      team:(iTeam>-1?row[iTeam]:'').trim(),
+      bye:(iBye>-1?row[iBye]:'').trim(),
+      value:iVal>-1?num(row[iVal]):NaN,
+      proj:iProj>-1?num(row[iProj]):NaN,
+      rank:iRank>-1?num(row[iRank]):NaN
+    });
+  }
+  if(!out.length) return flash('bad','No players found in that file.');
+  players=out; playerSrc='imported';
+  store.set(PLAYERS_KEY,JSON.stringify(out)).then(function(){
+    closePanels(); flash('ok','Loaded '+out.length+' players.'); renderAll();
+  }).catch(function(){
+    flash('warn','Loaded '+out.length+' players, but the sheet could not be saved. Re-import if you reload.'); renderAll();
+  });
+}
+
+/* ---- sync codes -------------------------------------------------
+   A compact one-line encoding of the whole draft, short enough to paste
+   into a group chat. This is how mirrors stay current: you copy, they
+   paste, and their copy becomes identical to yours. Same information as
+   the JSON export, a fraction of the length. */
+function encodeSync(){
+  var clean=function(s){return String(s==null?'':s).replace(/[~^;|]/g,' ')};
+  var oi={}; config.owners.forEach(function(o,i){oi[o]=i});
+  return ['BMFL1',
+    config.owners.map(clean).join('^'),
+    config.budget, config.minBid,
+    picks.map(function(p){
+      return [oi[p.owner]===undefined?0:oi[p.owner],clean(p.name),
+              clean(p.pos),p.price,clean(p.team)].join('~');
+    }).join(';')].join('|');
+}
+function decodeSync(str){
+  var parts=String(str||'').trim().split('|');
+  if(parts[0]!=='BMFL1'||parts.length<5) return null;
+  var owners=parts[1].split('^').filter(Boolean);
+  if(!owners.length) return null;
+  var cfg={leagueName:config.leagueName,owners:owners,
+           budget:Number(parts[2])||200,minBid:Number(parts[3])||1};
+  var ps=(parts[4]||'').split(';').filter(Boolean).map(function(s,i){
+    var f=s.split('~');
+    return {id:'s'+i+'-'+Math.random().toString(36).slice(2,7),n:i+1,
+            at:new Date().toISOString(),name:f[1]||'?',pos:f[2]||'',
+            price:Number(f[3])||0,team:f[4]||'',playerId:null,
+            owner:owners[Number(f[0])]||owners[0]};
+  });
+  return {config:cfg,picks:ps};
+}
+
+/* -------------------------- derivation --------------------------- */
+function derive(){
+  var t={};
+  config.owners.forEach(function(o){t[o]={owner:o,spent:0,picks:[],bench:[],filled:{},assigned:[]}});
+  picks.forEach(function(p){var x=t[p.owner]; if(!x) return; x.spent+=p.price; x.picks.push(p);});
+  config.owners.forEach(function(o){
+    var x=t[o];
+    x.picks.forEach(function(p){
+      var placed=null;
+      for(var i=0;i<START_SLOTS.length;i++){
+        var s=START_SLOTS[i];
+        if(!x.filled[s.id]&&s.el.indexOf(p.pos)>-1){x.filled[s.id]=p;placed=s.id;break;}
+      }
+      if(!placed){x.bench.push(p);placed='BN';}
+      x.assigned.push({pick:p,slot:placed});
+    });
+    x.count=x.picks.length;
+    x.left=config.budget-x.spent;
+    x.open=ROSTER-x.count;
+    x.maxBid=x.open>0?Math.max(0,x.left-(x.open-1)*config.minBid):0;
+    x.needs=START_SLOTS.filter(function(s){return !x.filled[s.id]});
+    x.hardMax=x.maxBid;   /* advisor reads this name */
+    x.over=x.left<0||(x.open>0&&x.left<x.open*config.minBid);
+  });
+  return t;
+}
+function draftedSet(){var s={};picks.forEach(function(p){s[nkey(p.name)]=1;});return s;}
+
+/* =================== ADVISOR ANALYTICS (read-only) ===================
+   Everything below derives from the pick log and never writes to it.
+   Rendered behind a guard so a failure here cannot touch your draft.
+   =================================================================== */
+function model(){
+  var N=config.owners.length*ROSTER;
+  var totalBudget=config.owners.length*config.budget;
+  var pool=players.map(function(p){
+    var v=isFinite(p.raw)?p.raw:(isFinite(p.value)?p.value:NaN);
+    return (p.raw===v)?p:Object.assign({},p,{raw:v});
+  }).filter(function(p){return p.pos!=='K'&&isFinite(p.raw)&&p.raw>0;});
+  if(!pool.length) return null;
+
+  var ranked=pool.slice().sort(function(a,b){return b.raw-a.raw});
+  var top=ranked.slice(0,N);
+  var rawSurplus=top.reduce(function(s,p){return s+Math.max(0,p.raw-1)},0);
+  var budgetSurplus=totalBudget-N*config.minBid;
+  var scale=rawSurplus>0?budgetSurplus/rawSurplus:1;
+
+  var norm={};
+  pool.forEach(function(p){ norm[p.id]=config.minBid+Math.max(0,p.raw-1)*scale; });
+
+  /* ---- market curve --------------------------------------------------
+     Par (VBD) says what a player is worth. It does not say what rooms pay.
+     Four years of clearing prices from a competitive auction league show the
+     market is steeply front-loaded: the top 20 go for about 121% of
+     projection, ranks 21-50 for about par, 51-100 for 60%, and the tail for
+     roughly half. Quarterbacks are the exception -- even the best one clears
+     at about 98%, because nobody bids them up.
+
+     The curve is a REDISTRIBUTION, not free money: after applying it we
+     rescale so the drafted pool still sums to exactly the cash in the room.
+     Values below are anchored on the observed band midpoints and interpolated
+     between them so there are no cliffs at the band edges. */
+  /* The bands are expressed as a FRACTION of the players who will be drafted,
+     not as raw ranks. The source league is 12 teams and drafts roughly 180,
+     so its "ranks 51-100" is the 28th-56th percentile of its pool; carried
+     across as literal ranks into a 150-player pool it would stretch the
+     discount band far too deep. Percentiles transfer between league sizes;
+     ranks do not. */
+  var SRC_POOL=180;
+  var CURVE=[[0,1.215],[10/SRC_POOL,1.215],[35/SRC_POOL,1.022],
+             [75/SRC_POOL,0.597],[150/SRC_POOL,0.507],[3,0.507]];
+  var curveAt=function(rank){
+    var f=rank/Math.max(1,N);
+    for(var i=0;i<CURVE.length-1;i++){
+      if(f>=CURVE[i][0]&&f<=CURVE[i+1][0]){
+        var a=CURVE[i], b=CURVE[i+1];
+        if(b[0]===a[0]) return a[1];
+        return a[1]+(b[1]-a[1])*((f-a[0])/(b[0]-a[0]));
+      }
+    }
+    return CURVE[CURVE.length-1][1];
+  };
+  var byPar=pool.slice().sort(function(a,b){return norm[b.id]-norm[a.id];});
+  var mkt={}, preTop=0, postTop=0;
+  byPar.forEach(function(p,i){
+    var c=(p.pos==='QB')?0.98:((p.pos==='DEF')?1.0:curveAt(i+1));
+    mkt[p.id]=config.minBid+Math.max(0,norm[p.id]-config.minBid)*c;
+    if(i<N){ preTop+=norm[p.id]; postTop+=mkt[p.id]; }
+  });
+  var renorm=(postTop>N*config.minBid)
+    ? (preTop-N*config.minBid)/(postTop-N*config.minBid) : 1;
+  pool.forEach(function(p){
+    mkt[p.id]=config.minBid+Math.max(0,mkt[p.id]-config.minBid)*renorm;
+  });
+
+  /* Inflation: money still in the room vs. expected market value still on
+     the board. Measured against the curve, not raw par. */
+  var drafted=draftedSet();
+  var spent=picks.reduce(function(s,p){return s+p.price},0);
+  var moneyLeft=totalBudget-spent;
+  var slotsLeft=N-picks.length;
+  var avail=ranked.filter(function(p){return !drafted[nkey(p.name)]});
+  var availTop=avail.slice(0,Math.max(0,slotsLeft));
+  var valueLeft=availTop.reduce(function(s,p){return s+mkt[p.id]},0);
+
+  var mSurplus=moneyLeft-slotsLeft*config.minBid;
+  var vSurplus=valueLeft-slotsLeft*config.minBid;
+  var infl=(vSurplus>0)?(mSurplus/vSurplus):1;
+  if(!isFinite(infl)||infl<0) infl=1;
+
+  var adj={};
+  pool.forEach(function(p){ adj[p.id]=config.minBid+Math.max(0,mkt[p.id]-config.minBid)*infl; });
+
+  /* Room temperature: what the last 12 picks actually went for,
+     against par. Empirical, and it disagrees with theory sometimes. */
+  var byKey={}; pool.forEach(function(p){byKey[nkey(p.name)]=p});
+  var recent=picks.slice(-12), paid=0, par=0;
+  recent.forEach(function(p){
+    var m=byKey[nkey(p.name)];
+    if(m){paid+=p.price;par+=mkt[m.id];}
+  });
+  var temp=(par>0)?paid/par:null;
+
+  /* Projected points, for team-strength scoring. Only the projected tier
+     carries these; ADP-sourced depth has none, which is fine because it
+     almost never starts. Replacement proj per position fills empty slots. */
+  var projByKey={};
+  pool.forEach(function(p){ if(isFinite(p.proj)&&p.proj>0) projByKey[nkey(p.name)]=p.proj; });
+  var REPL_RANK={QB:12,RB:28,WR:38,TE:13,DEF:11};
+  var replProj={};
+  ['QB','RB','WR','TE','DEF'].forEach(function(ps){
+    var at=pool.filter(function(p){return p.pos===ps&&isFinite(p.proj)&&p.proj>0})
+               .sort(function(a,b){return b.proj-a.proj});
+    replProj[ps]=at.length?at[Math.min(at.length-1,REPL_RANK[ps]-1)].proj:0;
+  });
+
+  /* Positional run detection: what the room has been buying lately. */
+  var last8=picks.slice(-8), runCount={};
+  last8.forEach(function(p){ runCount[p.pos]=(runCount[p.pos]||0)+1; });
+  var runPos=null, runN=0;
+  Object.keys(runCount).forEach(function(k){ if(runCount[k]>runN){runN=runCount[k];runPos=k;} });
+  var run=(last8.length>=6&&runN>=4)?{pos:runPos,n:runN,of:last8.length}:null;
+
+  return {N:N,totalBudget:totalBudget,pool:pool,ranked:ranked,norm:norm,adj:adj,
+    infl:infl,moneyLeft:moneyLeft,slotsLeft:slotsLeft,valueLeft:valueLeft,
+    avail:avail,spent:spent,temp:temp,tempN:recent.length,scale:scale,
+    mkt:mkt,curveAt:curveAt,projByKey:projByKey,replProj:replProj,run:run};
+}
+
+/* ---- the budget plan -------------------------------------------------
+   $200 across 15 spots averages $13.33, but that average is a lie: six bench
+   spots and two positions go for about a dollar. These buckets are the real
+   shape of the money. Slots sum to 15; the low ends sum to $178 and the high
+   ends to $216, so $200 sits inside the plan with room to move. */
+/* The buckets ARE the plan, and the Stars / Mids boxes reshape them. Slot
+   counts always sum to 15 and the dollar ranges scale per slot, so the
+   defaults reproduce the stated plan exactly:
+     2 anchors $100-115 | 1 second-tier $30-35 | 4 mids $40-50
+     QB $1-10 | DEF $1 | 6 bench $6-12
+   Everything downstream -- the panel, the reserve, the walk-away band --
+   reads these, so there is one budget model rather than two that disagree. */
+function buckets(){
+  var st=Math.max(0,Math.min(6,plan.stars));
+  var sc=Math.max(0,Math.min(4,plan.second===undefined?1:plan.second));
+  var md=Math.max(0,Math.min(8,plan.mids));
+  /* QB and DEF are always one slot each. Trim mids, then second-tier, then
+     anchors, so the slots always total exactly ROSTER whatever the boxes say. */
+  var fixed=2;
+  if(st+sc+md+fixed>ROSTER) md=Math.max(0,ROSTER-fixed-st-sc);
+  if(st+sc+md+fixed>ROSTER) sc=Math.max(0,ROSTER-fixed-st-md);
+  if(st+sc+md+fixed>ROSTER) st=Math.max(0,ROSTER-fixed-sc-md);
+  var bn=Math.max(0,ROSTER-(st+sc+md+2));
+  return [
+   {id:'anchor',label:'Anchors',     n:st,lo:50*st, hi:57.5*st, note:'best available, ignore position'},
+   {id:'second',label:'Second-tier', n:sc,lo:30*sc, hi:35*sc,   note:'one clear notch below the anchors'},
+   {id:'mid',   label:'Mid starters',n:md,lo:10*md, hi:12.5*md, note:'the RB2 / WR3 / flex layer'},
+   {id:'qb',    label:'QB',          n:1, lo:1,     hi:10,      note:'cheap, but take a bargain if one falls'},
+   {id:'def',   label:'DEF',         n:1, lo:1,     hi:1,       note:'stream it, gone by week 3'},
+   {id:'bench', label:'Bench',       n:bn,lo:1*bn,  hi:2*bn,    note:'nothing above $3'}
+  ];
+}
+var HARD_CAP_POS={QB:10,DEF:1}, BENCH_CAP=3;
+/* Ceiling on any single player. Originally $55, tuned against a market that
+   priced every rank the same. Once the market curve was added -- so the top
+   twenty carry the premium rooms actually pay -- the cap stopped mattering:
+   130 drafts each returned 3.24 at $55, 3.28 with no cap at all, well inside
+   noise. It is kept as a loose backstop rather than a binding rule, because
+   the curve now does the work it was standing in for. */
+var TOP_STAR_CAP=75;
+
+/* Tier lines, derived from the plan so they move with the header boxes.
+   A player's bucket is decided by WHAT HE COSTS, not by how he ranks against
+   the rest of your roster. Ranking was the old rule and it meant an empty
+   roster classified every player as an anchor, since anything is your biggest
+   buy when you own nothing. */
+function tierLines(){
+  var B=buckets();
+  var per=function(id){
+    var b=B.filter(function(z){return z.id===id;})[0];
+    return (b&&b.n>0)?((b.lo+b.hi)/2)/b.n:0;
+  };
+  var a=per('anchor')||50, sc=per('second')||32;
+  /* The mid line sits one dollar above the bench cap, so the two rules agree:
+     anything you would not put on your bench is a starter buy. Deriving it
+     from the mid target instead left a dead band ($4-$6) that belonged to
+     neither bucket. */
+  return {anchor:Math.max(1,Math.round(a*0.80)),
+          second:Math.max(1,Math.round(sc*0.75)),
+          mid:BENCH_CAP+1};
+}
+
+/* Filling your buckets is a question about the roster you HAVE: your biggest
+   buys are your anchors whatever you paid, so landing a stud cheap fills an
+   anchor slot and releases the savings. Classifying a prospective bid is a
+   different question, answered by tier lines in bucketOf() below. Conflating
+   the two is what made a bargain lower your next cap. */
+function budget(x,extra){
+  var B=buckets();
+  var all=x.picks.slice(); if(extra) all.push(extra);
+  var qb=[],df=[],rest=[];
+  all.forEach(function(p){
+    if(p.pos==='QB') qb.push(p); else if(p.pos==='DEF') df.push(p); else rest.push(p);
+  });
+  qb.sort(function(a,b){return b.price-a.price;});
+  df.sort(function(a,b){return b.price-a.price;});
+  var assign={qb:qb.slice(0,1),def:df.slice(0,1),anchor:[],second:[],mid:[],bench:[]};
+  rest=rest.concat(qb.slice(1)).concat(df.slice(1));
+  rest.sort(function(a,b){return b.price-a.price;});
+  var caps={}; B.forEach(function(b){caps[b.id]=b.n;});
+  var i=0;
+  ['anchor','second','mid','bench'].forEach(function(k){
+    while(assign[k].length<(caps[k]||0)&&i<rest.length) assign[k].push(rest[i++]);
+  });
+  while(i<rest.length) assign.bench.push(rest[i++]);   /* overflow is visible */
+  return B.map(function(b){
+    var got=assign[b.id]||[];
+    var spent=got.reduce(function(t,q){return t+q.price;},0);
+    var target=(b.lo+b.hi)/2, rem=Math.max(0,b.n-got.length);
+    /* Never reserve more than a remaining slot in this bucket would actually
+       cost. Using (target - spent) alone meant underspending EARMARKED the
+       savings for later slots in the same bucket -- so a $30 anchor left $78
+       tied up while a $75 anchor left only $33, and overpaying reached higher
+       than a bargain. Capping at the per-slot target frees real savings. */
+    var perSlotTarget=b.n>0?target/b.n:0;
+    var left=rem>0?Math.min(Math.max(0,target-spent),perSlotTarget*rem):0;
+    return {b:b,got:got,spent:spent,filled:got.length,remaining:rem,
+            target:target,left:left,perSlot:rem>0?left/rem:0};
+  });
+}
+
+/* What tier does this prospective bid belong to? Decided by what he costs, so
+   an empty roster no longer calls every player an anchor. */
+function bucketOf(x,cand){
+  var rows=budget(x), TL=tierLines(), id;
+  var have=function(k){var r=rows.filter(function(z){return z.b.id===k;})[0];return r&&r.remaining<=0;};
+  if(cand.pos==='QB'&&!have('qb')) id='qb';
+  else if(cand.pos==='DEF'&&!have('def')) id='def';
+  else if(cand.price>=TL.anchor) id='anchor';
+  else if(cand.price>=TL.second) id='second';
+  else if(cand.price>=TL.mid) id='mid';
+  else id='bench';
+  return rows.filter(function(r){return r.b.id===id;})[0]||null;
+}
+
+
+/* ---- tier depth -------------------------------------------------------
+   Players at the same position whose value sits within a band of this one are
+   his tier. The cliff is the drop to the first player below that band. Being
+   the last man above a cliff is worth paying for; being one of six is not. */
+function tierDepth(p,M){
+  var same=M.avail.filter(function(q){return q.pos===p.pos;})
+                  .sort(function(a,b){return M.adj[b.id]-M.adj[a.id];});
+  var v=M.adj[p.id], band=Math.max(4,v*0.20);
+  var inTier=same.filter(function(q){return M.adj[q.id]>=v-band&&q.id!==p.id;});
+  var below=same.filter(function(q){return M.adj[q.id]<v-band;});
+  return {count:inTier.length, next:below[0]||null,
+          cliff:below[0]?v-M.adj[below[0].id]:null, band:band};
+}
+
+/* ---- comparable sales -------------------------------------------------
+   What the room actually paid for players of similar par value at the same
+   position. Par is used rather than live market so the comparison does not
+   move underneath itself as inflation shifts. */
+function comparables(p,M){
+  var byKey={}; M.pool.forEach(function(q){ byKey[nkey(q.name)]=q; });
+  var target=M.norm[p.id], lo=target*0.6, hi=target*1.6, out=[];
+  for(var i=picks.length-1;i>=0&&out.length<5;i--){
+    var pk=picks[i], src=byKey[nkey(pk.name)];
+    if(!src||src.pos!==p.pos) continue;
+    var par=M.norm[src.id];
+    if(par<lo||par>hi) continue;
+    out.push({name:pk.name,paid:pk.price,par:par,ratio:par>0?pk.price/par:1,owner:pk.owner});
+  }
+  if(!out.length) return null;
+  var avg=out.reduce(function(a,z){return a+z.ratio;},0)/out.length;
+  return {list:out, avg:avg, implied:M.norm[p.id]*avg};
+}
+
+/* ---- bye conflicts ----------------------------------------------------
+   Three starters sharing a bye is a lost week. The data was already on every
+   player; it just was not being read. */
+function byeConflicts(t,M){
+  var x=t[me], byKey={};
+  M.pool.forEach(function(q){ byKey[nkey(q.name)]=q; });
+  players.forEach(function(q){ if(!byKey[nkey(q.name)]) byKey[nkey(q.name)]=q; });
+  var weeks={};
+  START_SLOTS.forEach(function(sl){
+    var f=x.filled[sl.id]; if(!f) return;
+    var src=byKey[nkey(f.name)]; if(!src||!src.bye) return;
+    var w=String(src.bye).trim(); if(!w||w==='0') return;
+    (weeks[w]=weeks[w]||[]).push({name:f.name,pos:f.pos,slot:sl.label});
+  });
+  var bad=Object.keys(weeks).filter(function(w){return weeks[w].length>=3;})
+    .sort(function(a,b){return weeks[b].length-weeks[a].length;});
+  return {weeks:weeks, bad:bad};
+}
+
+/* Projected starting-lineup points for every owner. Empty slots are valued at
+   replacement, so a half-built roster is compared fairly against a full one.
+   This answers "am I winning", which price data alone never does. */
+
+function strength(t,M){
+  var rows=config.owners.map(function(o){
+    var x=t[o], pts=0, known=0;
+    START_SLOTS.forEach(function(s){
+      var f=x.filled[s.id];
+      if(f){
+        var pr=M.projByKey[nkey(f.name)];
+        if(pr){ pts+=pr; known++; } else { pts+=M.replProj[f.pos]||0; }
+      } else {
+        pts+=M.replProj[s.el[0]]||0;
+      }
+    });
+    return {owner:o,pts:pts,known:known,filled:x.count,left:x.left,open:x.open};
+  }).sort(function(a,b){return b.pts-a.pts});
+  rows.forEach(function(r,i){ r.rank=i+1; });
+  return rows;
+}
+
+/* Nomination value: who to throw on the block to drain other people's money.
+   A good nomination is expensive, wanted by owners who can still pay for him,
+   and at a position you do not need yourself. */
+function nominations(t,M){
+  var mine=t[me], myNeed={};
+  if(mine) mine.needs.forEach(function(s){ s.el.forEach(function(p){ myNeed[p]=1; }); });
+  return M.avail.slice(0,60).map(function(p){
+    var price=M.adj[p.id];
+    var rivals=config.owners.filter(function(o){
+      if(o===me) return false;
+      var y=t[o];
+      return y.open>0 && y.maxBid>=price*0.8 &&
+             y.needs.some(function(s){return s.el.indexOf(p.pos)>-1});
+    });
+    return {p:p,price:price,rivals:rivals.length,iNeed:!!myNeed[p.pos],
+            drain:price*rivals.length};
+  }).filter(function(z){return z.rivals>0})
+    .sort(function(a,b){return b.drain-a.drain});
+}
+
+/* Estimated cost to fill an owner's other starting slots at market.
+   MODEL: assumes each remaining starter costs roughly what the Dth
+   best player at that position costs, D = league-wide unfilled slots
+   at that position. Bench slots priced at the minimum. */
+
+function leagueDemand(t){
+  var demand={QB:0,RB:0,WR:0,TE:0,DEF:0}, flex=0;
+  config.owners.forEach(function(o){
+    t[o].needs.forEach(function(s){
+      if(s.id==='FLEX'){flex++;return;}
+      demand[s.el[0]]=(demand[s.el[0]]||0)+1;
+    });
+  });
+  return {pos:demand,flex:flex};
+}
+
+/* Two reserves, because "what can I afford" has two honest answers.
+
+   BALANCED  -- you fill every remaining starting slot at market. If the
+                league still needs D starters at a position and you need k
+                of them, your k land roughly evenly through that group, at
+                available ranks (i-0.5)*D/k. Bench at the minimum.
+
+   LEAN      -- stars and scrubs. You fill remaining starters at the cheap
+                end of the group that clears, and the bench at $1. This is
+                a real strategy, not a mistake, but it only works if you
+                actually follow through and stay cheap afterwards.
+
+   The gap between them is the decision band. */
+/* What each still-open starting slot would cost at three ambition levels:
+     star  -- the best player still available who fits it
+     mid   -- your even share of the group the league has left to fill
+     cheap -- the last player who clears at that position
+   Returned per slot so the plan can assign each slot a level. */
+function slotCosts(owner,t,M,skipSlotId){
+  var x=t[owner], drafted=draftedSet(), D=leagueDemand(t);
+  var out=[];
+  x.needs.filter(function(s){return s.id!==skipSlotId;}).forEach(function(s){
+    var c=M.ranked.filter(function(p){
+      return !drafted[nkey(p.name)]&&s.el.indexOf(p.pos)>-1;});
+    if(!c.length){ out.push({slot:s,star:config.minBid,mid:config.minBid,cheap:config.minBid}); return; }
+    var d, base=0;
+    if(s.id==='FLEX'){
+      d=D.flex||1; base=(D.pos.RB||0)+(D.pos.WR||0)+(D.pos.TE||0);
+    } else { d=Math.max(D.pos[s.el[0]]||1,1); }
+    var at=function(i){ return Math.max(config.minBid, M.adj[c[Math.min(c.length-1,Math.max(0,i))].id]); };
+    out.push({slot:s,
+              star :at(base+Math.ceil(d/8)-1),   /* top of the group, not the very best left */
+              mid  :at(base+Math.ceil(d/2)-1),   /* your even share */
+              cheap:at(base+d-1)});              /* last one that clears */
+  });
+  return out;
+}
+
+/* How many anchors and mid starters this owner has already bought, judged by
+   what they actually paid. */
+function tiersOwned(x){
+  var starLine=config.budget*0.15, midLine=config.budget*0.05;
+  var stars=0, mids=0;
+  x.picks.forEach(function(p){
+    if(p.price>=starLine) stars++;
+    else if(p.price>=midLine) mids++;
+  });
+  return {stars:stars, mids:mids, starLine:starLine, midLine:midLine};
+}
+
+/* Reserve under two readings of the same roster.
+
+   BALANCED -- every remaining starting slot filled at your even share of
+               what the league has left. No concentration.
+
+   PLAN     -- your stated build: finish out the anchors and mid starters you
+               still owe yourself, then go cheap. Slots are sorted by what a
+               star would cost there, so the anchors land where they buy the
+               most, and the leftovers get the cheap price.
+
+   Bench is the minimum in both. */
+/* Reserve straight from the budget plan: what every remaining bucket still
+   needs after this buy consumes one slot in its own bucket. The slot-cost
+   reserve and the bucket plan used to disagree -- on an empty roster the
+   slot model held back $156 (first anchor capped at $44) while the buckets
+   implied ~$147 (first anchor ~$53). Deriving the plan reserve from the
+   buckets makes the walk-away band and the Budget plan panel agree by
+   construction, which is the whole point of having a stated plan. */
+function planReserve(x,cand){
+  var rows=budget(x);
+  var target=cand?bucketOf(x,cand):null;
+  var total=0;
+  rows.forEach(function(r){
+    var left=r.left, rem=r.remaining;
+    if(target&&r.b.id===target.b.id&&rem>0) left=Math.max(0,left-(left/rem));
+    total+=left;
+  });
+  return total;
+}
+
+function reserveFor(owner,t,M,skipSlotId,mode,targetIsStar){
+  var x=t[owner]; if(!x||!M) return 0;
+  var costs=slotCosts(owner,t,M,skipSlotId);
+  var benchOpen=Math.max(0,x.open-1-costs.length);
+  var reserve=benchOpen*config.minBid;
+
+  if(mode!=='plan'){
+    costs.forEach(function(c){ reserve+=c.mid; });
+    return reserve;
+  }
+
+  var owned=tiersOwned(x);
+  var starsLeft=Math.max(0,plan.stars-owned.stars-(targetIsStar?1:0));
+  var midsLeft =Math.max(0,plan.mids -owned.mids -(targetIsStar?0:1));
+
+  /* Do not reserve for anchors that no longer exist. Once the star-priced
+     players who fit your open slots are gone, that money is dead weight --
+     it is why a simulated draft finished with $45 unspent. */
+  var starsAvail=0, midsAvail=0;
+  costs.forEach(function(c){
+    if(c.star>=owned.starLine) starsAvail++;
+    if(c.mid>=owned.midLine) midsAvail++;
+  });
+  starsLeft=Math.min(starsLeft,starsAvail);
+  midsLeft =Math.min(midsLeft ,midsAvail);
+
+  var k=costs.length;
+  var s=Math.min(starsLeft,k), m=Math.min(midsLeft,k-s);
+  costs.sort(function(a,b){return b.star-a.star;});
+  costs.forEach(function(c,i){
+    reserve += (i<s) ? c.star : (i<s+m ? c.mid : c.cheap);
+  });
+  return reserve;
+}
+
+/* ----------------------------- rendering --------------------------- */
+
+function worth(p,t,M,x,slot){
+  var prem=1.0, why=[];
+  var D=leagueDemand(t), pos=p.pos;
+  var demand=(D.pos[pos]||0)+(['RB','WR','TE'].indexOf(pos)>-1?D.flex/3:0);
+  var supply=M.avail.filter(function(q){
+    return q.pos===pos&&M.adj[q.id]>=Math.max(3,config.minBid*3);}).length;
+  var ratio=supply>0?demand/supply:(demand>0?3:0);
+
+  if(ratio>1.05){
+    var add=Math.min(0.25,(ratio-1)*0.25); prem+=add;
+    why.push({up:true,t:pos+' squeeze — '+demand.toFixed(0)+' slots chasing '+supply+' startable'});
+  } else if(ratio<0.6){
+    prem-=0.10;
+    why.push({up:false,t:pos+' is soft — '+supply+' startable for '+demand.toFixed(0)+' slots'});
+  }
+
+  var same=M.avail.filter(function(q){return q.pos===pos;});
+  var i=-1; same.forEach(function(q,j){ if(q.id===p.id) i=j; });
+  var next=(i>-1)?same[i+1]:null;
+  if(next){
+    var gap=M.adj[p.id]-M.adj[next.id];
+    if(gap>=Math.max(4,M.adj[p.id]*0.18)){
+      prem+=0.15;
+      why.push({up:true,t:money(gap)+' cliff to the next '+pos+' ('+next.name+')'});
+    }
+  }
+
+  var benchOnly=false;
+  if(!slot){
+    /* Hard stop: if every remaining roster spot is needed for a starting slot
+       you have not filled, a bench player is not affordable at any price. */
+    if(x.open<=x.needs.length){
+      why.push({up:false,t:'do not buy — your last '+x.open+' spot'+(x.open===1?'':'s')
+        +' must cover '+x.needs.map(function(z){return z.label;}).join(', ')});
+      return {prem:0, why:why, price:0, blocked:true};
+    }
+    benchOnly=true;
+    why.push({up:false,t:'bench only for you — no starting slot open at '+pos});
+  }
+  /* Running out of bodies at a slot you still have to fill. */
+  if(slot){
+    var leftAtPos=M.avail.filter(function(q){return slot.el.indexOf(q.pos)>-1;}).length;
+    var slotsNeeded=0;
+    config.owners.forEach(function(o){
+      t[o].needs.forEach(function(z){ if(z.el.indexOf(pos)>-1) slotsNeeded++; });
+    });
+    if(leftAtPos<=slotsNeeded*0.6&&leftAtPos<12){
+      prem+=0.12;
+      why.push({up:true,t:'only '+leftAtPos+' bodies left for '+slotsNeeded+' open '+pos+' slots league-wide'});
+    }
+  }
+  /* What the room is ACTUALLY paying, measured from the last dozen picks.
+     Market price is fair value; in a room that bids over the odds, fair value
+     loses every auction. Simulated against an aggressive league, bidding to
+     fair value finished 5.4th of 10 and left $38 unspent; carrying the room's
+     own premium finished 2.1st. This term is measured, not assumed. */
+  if(M.temp&&M.tempN>=5&&M.temp>1.05){
+    var heat=Math.min(1.30,M.temp);
+    prem*=heat;
+    why.push({up:true,t:'room is paying '+M.temp.toFixed(2)+'\u00d7 par over the last '+M.tempN+' picks'});
+  }
+  /* Your own read on the league, from the Heat box. */
+  if(plan.heat&&plan.heat!==1){
+    prem*=plan.heat;
+    why.push({up:plan.heat>1,t:'your league setting: '+Math.round(plan.heat*100)+'% of normal aggression'});
+  }
+  /* The bench cap is applied last, after room heat and your league setting.
+     Applied earlier, a hot room lifted a bench-only buy back to 0.94x. */
+  /* Ceiling on the whole chain. Squeeze, tier cliff, measured room heat and
+     your league setting all multiply, and together they reached 2.00x in a
+     random-state sweep -- past the 1.45x this model is meant to promise. */
+  if(prem>1.45) prem=1.45;
+  if(benchOnly) prem=Math.min(prem,0.85);
+  if(prem<0.5) prem=0.5;
+  /* Sanity rail: inflation and heat together can never justify more than
+     double a player's intrinsic value. Stops a $3 defense becoming a $41 one. */
+  var price=Math.min(M.adj[p.id]*prem, M.norm[p.id]*2.0);
+  return {prem:(M.adj[p.id]>0?price/M.adj[p.id]:prem), why:why, price:price};
+}
+
+
+function renderBudget(t,M){
+  var x=t[me], rows=budget(x);
+  var committed=x.spent;
+  var stillNeeded=rows.reduce(function(a,r){return a+r.left;},0);
+  var leftover=x.left-stillNeeded;
+  if(x.open<=0) leftover=x.left;
+  var TL=tierLines();
+  /* If the plan's own targets add up to more than the budget, the reserve eats
+     everything and the tool becomes unusable -- simulated at rank 10.0 of 10
+     with $173 unspent. Say so loudly rather than letting it happen quietly. */
+  var planTotal=rows.reduce(function(a,r){return a+r.target;},0);
+  var planOver=planTotal-config.budget;
+  $('bpStat').textContent=money(committed)+' committed \u00b7 '+money(x.left)+' left \u00b7 '
+    +x.open+' spots open \u00b7 tiers: anchor '+money(TL.anchor)+'+, second '+money(TL.second)
+    +'+, mid '+money(TL.mid)+'+, bench under '+money(TL.mid);
+  $('budgetPlan').innerHTML=(planOver>0
+      ? '<caption class="planOver">Your plan asks for '+money(planTotal)+' of a '+money(config.budget)
+        +' budget \u2014 over by '+money(planOver)+'. Every bid is squeezed until you cut a slot. '
+        +'Lower Mids or 2nd in the header.</caption>'
+      : '')
+    +'<thead><tr><th>Bucket</th><th style="text-align:right">Filled</th>'
+    +'<th style="text-align:right">Spent</th><th style="text-align:right">Target</th>'
+    +'<th style="text-align:right">Left for it</th><th>Call</th></tr></thead><tbody>'
+    +rows.map(function(r){
+      var over=r.spent>r.b.hi, under=r.remaining===0&&r.spent<r.b.lo;
+      var tooMany=r.filled>r.b.n;
+      var call, cls;
+      if(tooMany){
+        call=r.filled+' in a '+r.b.n+'-slot bucket — you are buying more at this tier than the plan allows';
+        cls='hot';
+      } else if(r.remaining===0){
+        if(over){
+          call=(leftover>3)?'over by '+money(r.spent-r.b.hi)+' — fine, money is still idle':'over by '+money(r.spent-r.b.hi);
+          cls=(leftover>3)?'even':'hot';
+        }
+        else if(under){ call='came in '+money(r.b.lo-r.spent)+' under — spend it elsewhere'; cls='soft'; }
+        else { call='done, on plan'; cls='even'; }
+      } else if(over){
+        call=(leftover>3)?'over target, but you still have '+money(leftover)+' idle — keep going':'already over — stop buying here';
+        cls=(leftover>3)?'even':'hot';
+      }
+      else { call='about '+money(r.perSlot)+' each for '+r.remaining+' more'; cls='even'; }
+      return '<tr><td><b>'+r.b.label+'</b><div class="bnote">'+esc(r.b.note)+'</div></td>'
+        +'<td class="num">'+r.filled+'/'+r.b.n+'</td>'
+        +'<td class="num" style="color:var(--gold)">'+money(r.spent)+'</td>'
+        +'<td class="num" style="color:var(--dim)">'+money(r.b.lo)+'\u2013'+money(r.b.hi)+'</td>'
+        +'<td class="num">'+(r.remaining?money(r.left):'\u2014')+'</td>'
+        +'<td class="'+cls+'" style="font-size:12px">'+call+'</td></tr>';
+    }).join('')
+    +'<tr style="border-top:2px solid var(--line)"><td><b>Projected leftover</b>'
+      +'<div class="bnote">every dollar you walk out with is a player you did not buy</div></td>'
+      +'<td></td><td class="num" style="color:'+(leftover>5?'var(--red)':'var(--sage)')+'">'+money(leftover)+'</td>'
+      +'<td class="num" style="color:var(--dim)">$0\u2013$2</td><td></td>'
+      +'<td class="'+(leftover>5?'hot':(leftover< -5?'hot':'soft'))+'" style="font-size:12px">'
+      +(leftover>5?'push — you are set to leave '+money(leftover)+' unspent'
+        :(leftover< -5?'hold — your plan needs '+money(-leftover)+' more than you have'
+          :'on plan'))+'</td></tr></tbody>';
+}
+
+
+function renderStandings(t,M){
+  var rows=strength(t,M);
+  var best=rows[0].pts, worst=rows[rows.length-1].pts, span=best-worst||1;
+  var cov=rows.reduce(function(s,r){return s+r.known},0);
+  $('stStat').textContent=cov+' of '+(rows.length*START_SLOTS.length)+' starting slots have a real projection';
+  $('standings').innerHTML='<thead><tr><th>#</th><th>Owner</th>'
+    +'<th style="text-align:right" title="Projected points per week from the current starting nine, with open slots valued at replacement.">PROJ PTS/WK</th>'
+    +'<th>vs field</th><th style="text-align:right">Roster</th><th style="text-align:right">$ left</th></tr></thead><tbody>'
+    +rows.map(function(r){
+      var pct=((r.pts-worst)/span)*100;
+      var meRow=r.owner===me;
+      return '<tr'+(meRow?' style="background:var(--panel2)"':'')+'>'
+        +'<td class="num" style="color:var(--dimmer)">'+r.rank+'</td>'
+        +'<td style="font-weight:'+(meRow?'700':'400')+'">'+esc(r.owner)+(meRow?' <span style="color:var(--gold);font-size:11px">you</span>':'')+'</td>'
+        +'<td class="num" style="color:var(--gold);font-weight:600">'+r.pts.toFixed(1)+'</td>'
+        +'<td><div class="sbar"><div class="sfill" style="width:'+pct+'%;background:'+(meRow?'var(--gold)':'var(--sage)')+'"></div></div></td>'
+        +'<td class="num" style="color:var(--dim)">'+r.filled+'/'+ROSTER+'</td>'
+        +'<td class="num" style="color:var(--dim)">'+money(r.left)+'</td></tr>';
+    }).join('')+'</tbody>';
+}
+
+
+function renderNoms(t,M){
+  var list=nominations(t,M);
+  if(!list.length){ $('noms').innerHTML='<tbody><tr><td class="empty">Nothing left that other owners both need and can afford.</td></tr></tbody>'; return; }
+  var safe=list.filter(function(z){return !z.iNeed}).slice(0,6);
+  var careful=list.filter(function(z){return z.iNeed}).slice(0,3);
+  var row=function(z,warn){
+    return '<tr><td><span class="pill" style="background:'+POSC[z.p.pos]+'">'+esc(z.p.pos)+'</span></td>'
+      +'<td>'+esc(z.p.name)+' <span style="color:var(--dimmer);font-size:12px">'+esc(z.p.team||'')+'</span></td>'
+      +'<td class="num" style="color:var(--gold)">'+money(z.price)+'</td>'
+      +'<td class="num">'+z.rivals+'</td>'
+      +'<td class="num" style="color:var(--sage);font-weight:600">'+money(z.drain)+'</td>'
+      +'<td style="font-size:12px;color:'+(warn?'var(--red)':'var(--dimmer)')+'">'
+      +(warn?'you need '+z.p.pos:'not your need')+'</td></tr>';
+  };
+  $('noms').innerHTML='<thead><tr><th>Pos</th><th>Player</th>'
+    +'<th style="text-align:right">Market</th>'
+    +'<th style="text-align:right" title="Owners who still need this position and can afford him.">BIDDERS</th>'
+    +'<th style="text-align:right" title="Market price x live bidders — roughly how much rival money this nomination puts in play.">DRAIN</th>'
+    +'<th></th></tr></thead><tbody>'
+    +safe.map(function(z){return row(z,false)}).join('')
+    +careful.map(function(z){return row(z,true)}).join('')+'</tbody>';
+}
+
+
+function renderMetrics(M){
+  var pct=(M.infl-1)*100;
+  var cls=pct>4?'hot':(pct<-4?'soft':'even');
+  var word=pct>4?'running hot':(pct<-4?'running cold':'roughly at par');
+  var tempPct=M.temp!=null?(M.temp-1)*100:null;
+  $('mktStat').textContent=picks.length+' of '+M.N+' slots filled';
+  $('metrics').innerHTML=
+    '<div class="metric"><div class="micro">Inflation</div><div class="mbig '+cls+'">'+(pct>=0?'+':'')+pct.toFixed(0)+'%</div>'
+      +'<div class="msub">'+money(M.moneyLeft)+' chasing '+money(M.valueLeft)+' of value. The board is '+word+'.</div></div>'
+    +'<div class="metric"><div class="micro">Last '+M.tempN+' picks</div><div class="mbig">'+(tempPct==null?'—':(tempPct>=0?'+':'')+tempPct.toFixed(0)+'%')+'</div>'
+      +'<div class="msub">'+(tempPct==null?'Not enough matched picks yet.':'What the room actually paid against par. Trust this over theory when they disagree.')+'</div></div>'
+    +'<div class="metric"><div class="micro">Money left</div><div class="mbig">'+money(M.moneyLeft)+'</div>'
+      +'<div class="msub">Across '+M.slotsLeft+' open roster slots · '+money(M.spent)+' spent.</div></div>'
+    +'<div class="metric"><div class="micro">Room behaviour</div><div class="mbig" style="font-size:20px;color:'
+      +(M.run?'var(--red)':'var(--dim)')+'">'+(M.run?M.run.pos+' run':'no run')+'</div>'
+      +'<div class="msub">'+(M.run
+        ? M.run.n+' of the last '+M.run.of+' picks were '+M.run.pos+'s. Prices at that position are spiking — either jump in now or wait for it to burn out.'
+        : 'Last 8 picks are spread across positions. No positional run in progress.')+'</div></div>'
+    +'<div class="metric"><div class="micro">Sheet rescale</div><div class="mbig">'+(M.scale).toFixed(2)+'×</div>'
+      +'<div class="msub">Your sheet\'s dollars, scaled to '+config.owners.length+' teams and no kicker.</div></div>';
+}
+
+
+function renderPressure(t,M){
+  var drafted=draftedSet();
+  var demand={QB:0,RB:0,WR:0,TE:0,DEF:0}, flex=0, moneyBehind={QB:0,RB:0,WR:0,TE:0,DEF:0};
+  config.owners.forEach(function(o){
+    var x=t[o];
+    x.needs.forEach(function(s){
+      if(s.id==='FLEX'){flex++;return;}
+      var p=s.el[0];
+      if(demand[p]!==undefined){demand[p]++;moneyBehind[p]+=x.maxBid;}
+    });
+  });
+  var rows=['QB','RB','WR','TE','DEF'].map(function(pos){
+    var avail=M.avail.filter(function(p){return p.pos===pos});
+    var startable=avail.filter(function(p){return M.adj[p.id]>=Math.max(3,config.minBid*3)});
+    var d=demand[pos]+(['RB','WR','TE'].indexOf(pos)>-1?flex/3:0);
+    var ratio=startable.length>0?d/startable.length:(d>0?99:0);
+    var cls=ratio>=1?'hot':(ratio<=0.5?'soft':'even');
+    var word=ratio>=1?'squeeze':(ratio<=0.5?'soft':'balanced');
+    var top=avail[0];
+    return '<tr><td><span class="pill" style="background:'+POSC[pos]+'">'+pos+'</span></td>'
+      +'<td class="num">'+d.toFixed(1)+'</td>'
+      +'<td class="num">'+startable.length+'</td>'
+      +'<td class="'+cls+'">'+word+'</td>'
+      +'<td class="num">'+money(moneyBehind[pos])+'</td>'
+      +'<td>'+(top?esc(top.name)+' <span style="color:var(--gold);font-family:var(--mono)">'+money(M.adj[top.id])+'</span>':'—')+'</td></tr>';
+  }).join('');
+  $('pressure').innerHTML='<thead><tr><th>Pos</th><th style="text-align:right">Demand</th><th style="text-align:right">Left</th><th>Read</th><th style="text-align:right">Money behind it</th><th>Best available</th></tr></thead><tbody>'+rows+'</tbody>';
+}
+
+
+function renderLookup(t,M){
+  var p=sel?M.pool.filter(function(x){return nkey(x.name)===nkey(sel.name)})[0]:null;
+  if(!p){$('lookup').innerHTML='<div class="empty">Pick a player from the board to price him.</div>';return;}
+  var x=t[me];
+  var slot=null;
+  for(var i=0;i<START_SLOTS.length;i++){
+    var s=START_SLOTS[i];
+    if(!x.filled[s.id]&&s.el.indexOf(p.pos)>-1){slot=s;break;}
+  }
+  var market=M.adj[p.id];
+  var owned=tiersOwned(x);
+  var targetIsStar=market>=owned.starLine;
+  var rBal=reserveFor(me,t,M,slot?slot.id:null,'balanced');
+  var rPlan=planReserve(x,{name:p.name,pos:p.pos,price:Math.round(market),team:p.team});
+  var maxBal=Math.max(0,Math.min(x.maxBid,x.left-rBal));
+  var maxPlan=Math.max(0,Math.min(x.maxBid,x.left-rPlan));
+  var reserve=rBal, trueMax=maxBal;
+  var starsLeft=Math.max(0,plan.stars-owned.stars-(targetIsStar?1:0));
+  var midsLeft=Math.max(0,plan.mids-owned.mids-(targetIsStar?0:1));
+
+  /* Who else can pay this, and who actually wants to. */
+  var threats=config.owners.filter(function(o){return o!==me}).map(function(o){
+    var y=t[o];
+    var needsIt=y.needs.some(function(s){return s.el.indexOf(p.pos)>-1});
+    return {o:o,max:y.maxBid,needsIt:needsIt,open:y.open};
+  }).filter(function(z){return z.open>0&&z.max>=Math.round(market*0.8)})
+    .sort(function(a,b){return (b.needsIt-a.needsIt)||(b.max-a.max)});
+  var live=threats.filter(function(z){return z.needsIt});
+
+  var W=worth(p,t,M,x,slot);
+  var affordable=maxPlan;
+  var capStar=(!HARD_CAP_POS[p.pos])?TOP_STAR_CAP:Infinity;
+  var planAfford=affordable;
+  if(flexOn&&!HARD_CAP_POS[p.pos]){ affordable=x.maxBid; capStar=Infinity; }
+  var raw=Math.min(affordable,Math.round(W.price),capStar);
+  var bidTo=W.blocked?0:Math.max(0,raw);
+  var bound='worth';
+  if(W.blocked) bound='blocked';
+  else if(raw===capStar&&capStar<affordable&&capStar<W.price) bound='starcap';
+  else if(affordable<=W.price&&affordable<=capStar) bound='budget';
+
+  /* Where this buy lands in the plan, and the hard positional caps. */
+  var cand={name:p.name,pos:p.pos,price:Math.round(bidTo||market),team:p.team};
+  var bk=bucketOf(x,cand);
+  var planRows=budget(x);
+  var planRow=bk?planRows.filter(function(r){return r.b.id===bk.b.id;})[0]:null;
+  var posCap=HARD_CAP_POS[p.pos]||null;
+  if(bk&&bk.b.id==='bench') posCap=Math.min(posCap||99,BENCH_CAP);
+  var planNote=null, planTone='even';
+  if(!posCap&&!flexOn&&bidTo>TOP_STAR_CAP&&market>TOP_STAR_CAP){
+    planNote='Above your top-star ceiling of '+money(TOP_STAR_CAP)+'. In a room that bids up the '
+      +'obvious names, the player everyone agrees on is the one you overpay for. Two anchors at this '
+      +'ceiling fills your anchor bucket exactly — go past it only if you have decided to, not because the bidding got there.';
+    planTone='hot'; bidTo=Math.min(bidTo,TOP_STAR_CAP);
+  } else if(posCap&&market>posCap){
+    planNote='Plan caps '+(HARD_CAP_POS[p.pos]?p.pos:'bench players')+' at '+money(posCap)
+      +'. Market is '+money(market)+' — let someone else have him.';
+    planTone='hot'; bidTo=Math.min(bidTo,posCap);
+  } else if(planRow){
+    if(planRow.remaining<=0){
+      planNote='Your '+planRow.b.label.toLowerCase()+' bucket is already full ('+planRow.filled
+        +'/'+planRow.b.n+', '+money(planRow.spent)+'). Buying here means breaking the shape on purpose.';
+      planTone='hot';
+    } else {
+      var allow=Math.round(planRow.perSlot);
+      if(bidTo>allow*1.15){
+        planNote='This lands in '+planRow.b.label.toLowerCase()+'. Plan leaves about '+money(allow)
+          +' per slot there — bidding '+money(bidTo)+' is '+money(bidTo-allow)+' over. Hold, or take it from another bucket.';
+        planTone='hot';
+      } else if(bidTo<allow*0.7){
+        planNote='This lands in '+planRow.b.label.toLowerCase()+'. Plan allows about '+money(allow)
+          +' per slot there, so you have room to push to '+money(Math.min(affordable,allow))+' if the bidding goes there.';
+        planTone='soft';
+      } else {
+        planNote='Lands in '+planRow.b.label.toLowerCase()+', right on plan (about '+money(allow)+' per slot).';
+        planTone='even';
+      }
+    }
+  }
+  var verdictCol=bidTo>=market?'var(--gold)':'var(--red)';
+  $('lookup').innerHTML=
+    '<div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">'
+      +'<span class="pill" style="background:'+POSC[p.pos]+'">'+esc(p.pos)+'</span>'
+      +'<span style="font-weight:600;font-size:16px">'+esc(p.name)+'</span>'
+      +'<span style="color:var(--dim);font-size:13px">'+esc(p.team||'')+'</span></div>'
+    +(function(){
+        var raw=$('curBid')?$('curBid').value:'';
+        if(raw===''||!isFinite(Number(raw))) return '';
+        var cur=Math.max(0,Math.floor(Number(raw)));
+        var next=cur+config.minBid;
+        var go=!W.blocked&&next<=bidTo;
+        var head=bidTo-next;
+        var afterLeft=x.left-next, slotsAfter=x.open-1;
+        var perSlot=slotsAfter>0?afterLeft/slotsAfter:0;
+        var taker=live.length?live[0].o:(threats.length?threats[0].o:null);
+        var head1, body;
+        if(W.blocked){
+          head1='PASS'; body='Every roster spot you have left is spoken for by a starting slot.';
+        } else if(!go){
+          head1='PASS';
+          body='Your number is '+money(bidTo)+'. Going to '+money(next)+' puts you '
+            +money(next-bidTo)+' past it'
+            +(taker?'. Let '+esc(taker)+' have him.':'.');
+        } else if(head<=2){
+          head1='BID '+money(next);
+          body='Last call — '+money(next)+' is at your ceiling of '+money(bidTo)
+            +'. Win it here or let it go, but do not chase past this.';
+        } else {
+          head1='BID '+money(next);
+          body='Room to '+money(bidTo)+' ('+money(head)+' more). '
+            +(slotsAfter>0?'Winning at '+money(next)+' leaves '+money(perSlot)+' per slot for '+slotsAfter+' more.':'This fills your roster.');
+        }
+        var col=go&&!W.blocked?'var(--sage)':'var(--red)';
+        return '<div class="verdictBox" style="border-color:'+col+'">'
+          +'<div class="verdictWord" style="color:'+col+'">'+head1+'</div>'
+          +'<div class="verdictWhy">'+body+'</div></div>';
+     })()
+    +(function(){
+        if(!flexOn||HARD_CAP_POS[p.pos]) return '';
+        var after=x.left-bidTo, slotsLeft2=x.open-1;
+        var per=slotsLeft2>0?after/slotsLeft2:0;
+        var anchors=x.picks.filter(function(q){return q.price>=owned.starLine;}).length;
+        return '<div class="flexBox">'
+          +'<div class="flexHead">Flex on — budget plan ignored for this player</div>'
+          +'<div class="flexBody">Paying '+money(bidTo)+' leaves '+money(after)+' for '
+            +slotsLeft2+' slots ('+money(per)+' each). Your plan would have stopped at '+money(planAfford)+'.</div>'
+          +(anchors>=1?'<div class="flexWarn">You already have '+anchors+' player'+(anchors===1?'':'s')
+            +' at anchor money. Simulated over 110 drafts: one star grab costs about 0.15 rank; two finished '
+            +'bottom-three 72% of the time and never won.</div>':'')
+          +'</div>';
+     })()
+    +'<div class="micro">Bid to</div>'
+    +'<div class="bigBid" style="color:'+verdictCol+'">'+money(bidTo)
+      +'<span class="xMkt">'+(market>0?(bidTo/market).toFixed(2):'—')+'\u00d7 market of '+money(market)+'</span></div>'
+    +'<div class="whyBox">'
+      +(W.why.length
+         ? W.why.map(function(w){
+             return '<div class="whyRow"><span class="whyArrow" style="color:'+(w.up?'var(--red)':'var(--sage)')+'">'
+               +(w.up?'\u25b2':'\u25bc')+'</span>'+esc(w.t)+'</div>';}).join('')
+         : '<div class="whyRow"><span class="whyArrow" style="color:var(--dimmer)">=</span>Nothing about his position or tier justifies paying over market.</div>')
+      +'<div class="whyRow whyBind"><span class="whyArrow" style="color:var(--gold)">\u2502</span>'
+      +(bound==='blocked'
+          ? 'Every roster spot you have left is spoken for by a starting slot. Do not bid.'
+          : bound==='starcap'
+          ? 'Capped by your top-star ceiling of '+money(TOP_STAR_CAP)+'. He is worth '+money(Math.round(W.price))
+            +' and you could afford '+money(affordable)+' — the ceiling exists because the player the whole room agrees on is the one you overpay for.'
+          : bound==='budget'
+          ? 'Capped by your budget plan, which leaves '+money(affordable)+' here after reserving '+money(rPlan)
+            +' for your other '+(x.open-1)+' spots. He is worth '+money(Math.round(W.price))
+            +'. Lower Stars in the header if you want to concentrate more money on this one.'
+          : bound==='worth'
+          ? 'Capped by what he is worth ('+W.prem.toFixed(2)+'\u00d7). You could afford '+money(affordable)+', but paying it would be a bad buy.'
+          : 'Capped by what he is worth.')
+      +'</div></div>'
+    +(function(){
+        var td=tierDepth(p,M), cp=comparables(p,M), bits=[];
+        if(td.count===0&&td.next)
+          bits.push('<span class="hot">Last of his tier</span> — next '+esc(p.pos)+' down is '
+            +esc(td.next.name)+' at '+money(M.adj[td.next.id])+', a '+money(td.cliff)+' drop.');
+        else if(td.count>0)
+          bits.push(td.count+' more '+esc(p.pos)+(td.count===1?'':'s')+' within '+money(td.band)+' of him'
+            +(td.next?', then a '+money(td.cliff)+' cliff to '+esc(td.next.name):'')+'.');
+        if(cp)
+          bits.push('Room has paid <b>'+cp.avg.toFixed(2)+'&times; par</b> for similar '+esc(p.pos)+'s ('
+            +cp.list.map(function(z){return money(z.paid);}).join(', ')
+            +') — that implies about '+money(cp.implied)+' for him.');
+        return bits.length?'<div class="ctxBox">'+bits.map(function(b){
+          return '<div class="ctxRow">'+b+'</div>';}).join('')+'</div>':'';
+     })()
+    +(planNote?'<div class="planLine '+planTone+'">'+esc(planNote)+'</div>':'')
+    +'<div class="micro" style="margin-top:14px">What you could afford</div>'
+    +'<div class="bandRow">'
+      +'<div class="bandCell"><div class="bandN" style="color:'+(maxBal>=market?'var(--sage)':'var(--gold)')+'">'+money(maxBal)+'</div>'
+        +'<div class="bandL">balanced</div><div class="bandH">fill every slot at market</div></div>'
+      +'<div class="bandCell"><div class="bandN" style="color:var(--gold)">'+money(maxPlan)+'</div>'
+        +'<div class="bandL">your plan</div><div class="bandH">'+starsLeft+' more star'+(starsLeft===1?'':'s')+', '+midsLeft+' mid'+(midsLeft===1?'':'s')+', rest cheap</div></div>'
+      +'<div class="bandCell"><div class="bandN" style="color:var(--dimmer)">'+money(x.maxBid)+'</div>'
+        +'<div class="bandL">hard cap</div><div class="bandH">arithmetic limit only</div></div>'
+    +'</div>'
+    +(rPlan>x.left
+      ? '<div class="planWarn">This plan no longer fits. Finishing '+starsLeft+' more anchor'+(starsLeft===1?'':'s')+' and '+midsLeft+' mid starter'+(midsLeft===1?'':'s')+' costs about '+money(rPlan)+' and you have '+money(x.left)+'. Drop an anchor or a mid in the header before trusting the number above.</div>'
+      : '')
+    +'<div class="msub" style="margin-bottom:12px">'+(
+        market<=maxBal
+          ? 'Market is '+money(market)+'. Comfortably inside the balanced number — pay it and the rest of your roster still fills at market.'
+          : market<=maxPlan
+            ? 'Market is '+money(market)+'. Above balanced but inside your plan — you would still have room for '+starsLeft+' more anchor'+(starsLeft===1?'':'s')+' and '+midsLeft+' mid starter'+(midsLeft===1?'':'s')+' after paying it.'
+            : 'Market is '+money(market)+', past your plan. Paying it means dropping an anchor or a mid starter you said you wanted — decide which before you bid, not after.')+'</div>'
+    +'<div class="row"><span class="l">Market price (inflation-adjusted)</span><span class="r" style="color:var(--gold)">'+money(market)+'</span></div>'
+    +'<div class="row"><span class="l">Par on your sheet, rescaled</span><span class="r">'+money(M.norm[p.id])+'</span></div>'
+    +'<div class="row"><span class="l">Slot he fills for you</span><span class="r">'+(slot?slot.label:'bench')+'</span></div>'
+    +'<div class="row"><span class="l">You have</span><span class="r">'+money(x.left)+' · '+x.open+' slots</span></div>'
+    +'<div class="row"><span class="l">Reserve to fill '+(x.open-1)+' slots at market</span><span class="r">'+money(rBal)+'</span></div>'
+    +'<div class="row"><span class="l">Reserve to finish your plan</span><span class="r">'+money(rPlan)+'</span></div>'
+    +'<div class="row"><span class="l">Anchors / mids bought so far</span><span class="r">'+owned.stars+' of '+plan.stars+' &middot; '+owned.mids+' of '+plan.mids+'</span></div>'
+    +(function(){
+       var after=x.left-market, slotsAfter=x.open-1;
+       if(slotsAfter<=0) return '<div class="row"><span class="l">After this bid</span><span class="r">roster full</span></div>';
+       var avg=after/slotsAfter;
+       return '<div class="row"><span class="l">If you pay market, what is left per slot</span>'
+         +'<span class="r" style="color:'+(avg<1?'var(--red)':(avg<3?'var(--gold)':'var(--sage)'))+'">'
+         +money(avg)+' \u00d7 '+slotsAfter+'</span></div>';
+     })()
+    +'<div class="micro" style="margin-top:16px">Who can outbid you</div>'
+    +(threats.length
+      ? threats.slice(0,6).map(function(z){
+          return '<div class="threat"><span class="nm">'+esc(z.o)+'</span>'
+            +'<span style="font-size:11px;color:'+(z.needsIt?'var(--red)':'var(--dimmer)')+'">'+(z.needsIt?'needs '+p.pos:'has one')+'</span>'
+            +'<span style="font-family:var(--mono);color:var(--dim)">'+money(z.max)+'</span></div>';
+        }).join('')
+      : '<div class="msub">Nobody left can reach this price. Open at the minimum.</div>')
+    +(live.length===0&&threats.length>0?'<div class="msub" style="margin-top:8px">Nobody who can afford him still needs the position. Let him sit.</div>':'')
+    +(live.length===1?'<div class="msub" style="margin-top:8px">Only '+esc(live[0].o)+' needs him and can pay. One bidder — go slow.</div>':'');
+}
+
+
+function renderMine(t,M){
+  var x=t[me];
+  var reserve=reserveFor(me,t,M,null,'balanced');
+  var ownedT=tiersOwned(x);
+  var slack=x.left-reserve;
+  var spentPct=config.budget?((config.budget-x.left)/config.budget*100):0;
+  var slotPct=ROSTER?(x.count/ROSTER*100):0;
+  var pace=slotPct>0?(spentPct-slotPct):0;
+  $('mine').innerHTML=
+    '<div class="row"><span class="l">Roster</span><span class="r">'+x.count+' / '+ROSTER+'</span></div>'
+    +'<div class="row"><span class="l">Budget left</span><span class="r" style="color:var(--gold)">'+money(x.left)+'</span></div>'
+    +'<div class="row"><span class="l">Hard cap on any one bid</span><span class="r">'+money(x.maxBid)+'</span></div>'
+    +'<div class="row"><span class="l">Cost to fill '+x.open+' remaining slots at market</span><span class="r">'+money(reserve)+'</span></div>'
+    +'<div class="row"><span class="l">Budget per remaining slot</span><span class="r">'+(x.open?money(x.left/x.open):'—')+'</span></div>'
+    +'<div class="row"><span class="l">Slack</span><span class="r" style="color:'+(slack>=0?'var(--sage)':'var(--red)')+'">'+(slack>=0?'+':'')+money(slack)+'</span></div>'
+    +'<div class="msub" style="margin-top:10px">'+(slack>=0
+      ? 'You can cover every remaining slot at market and still have '+money(slack)+' to overpay somewhere. Spend it on a tier break, not a bench flier.'
+      : 'You are '+money(-slack)+' short of covering your remaining slots at market. You need bargains or a cheap starter — stop bidding to par.')+'</div>'
+    +(function(){
+        if(x.open<=0) return '';
+        var perSlot=x.left/x.open;
+        if(perSlot<=4) return '';
+        var need=reserve;
+        if(x.left-need<12) return '';
+        return '<div class="row"><span class="l" style="color:var(--gold)">Idle money</span>'
+          +'<span class="r" style="color:var(--gold)">'+money(x.left-need)+' above what your slots need</span></div>';
+     })()
+    +'<div class="row"><span class="l">Plan progress</span><span class="r">'
+      +ownedT.stars+'/'+plan.stars+' anchors &middot; '+ownedT.mids+'/'+plan.mids+' mids</span></div>'
+    +(function(){
+        var bc=byeConflicts(t,M);
+        if(!bc.bad.length) return '';
+        return bc.bad.map(function(w){
+          var g=bc.weeks[w];
+          return '<div class="byeWarn"><b>Week '+esc(w)+':</b> '+g.length+' of your starters are on bye — '
+            +g.map(function(z){return esc(z.name)+' ('+esc(z.slot)+')';}).join(', ')
+            +'. Worth knowing before you add another.</div>';
+        }).join('');
+     })()
+    +'<div class="row" style="margin-top:12px"><span class="l">Still to fill</span><span class="r">'+(x.needs.length?x.needs.map(function(s){return s.label}).join(' · '):'starters complete')+'</span></div>'
+    +'<div class="msub">Spend pace: '+spentPct.toFixed(0)+'% of budget across '+slotPct.toFixed(0)+'% of roster ('+(pace>=0?'+':'')+pace.toFixed(0)+' pts '+(pace>=0?'front-loaded':'back-loaded')+').</div>';
+}
+
+
+function renderMethod(M){
+  $('method').innerHTML=
+    '<b>How the numbers are built.</b> Your sheet is rescaled so the top '+M.N+' players sum to the '+money(M.totalBudget)
+    +' actually in this room — that corrects a 12-team, kicker-inclusive sheet for your 10-team, no-kicker league. '
+    +'Inflation compares money still unspent against par value still on the board; every market price is par stretched by that factor. '
+    +'Demand counts unfilled starting slots league-wide, with flex split across RB, WR and TE. '
+    +'<br><br><b>What is a guess.</b> The walk-away band rests on how your remaining slots get priced. The <b>balanced</b> number assumes your k remaining starters at a position land evenly through the group the league still has to fill, at market. The <b>stars and scrubs</b> number is built from your stated plan: it finishes out the anchors and mid starters you still owe yourself at what those cost today, then prices whatever is left at the cheap end with a $1 bench. Change the Stars and Mids boxes in the header and every number moves with them. The <b>hard cap</b> is arithmetic: it just reserves $1 a slot and is not advice. '
+    +'With $'+config.budget+' across '+ROSTER+' spots you average $'+(config.budget/ROSTER).toFixed(2)+' a player, so any bid well above the balanced number is a decision to go cheap somewhere else. '
+    +'<br><br><b>What it cannot see.</b> Injuries, news, who is drunk, who is going stars-and-scrubs, and whether your sheet was any good in the first place.';
+}
+
+
+/* For each starting slot still open, the best available player your current
+   money can win AT MARKET. Overpay and this list drops a tier; find a bargain
+   and it climbs one. Scan is capped so a render stays cheap. */
+function reach(t,M){
+  var x=t[me], drafted=draftedSet(), out=[];
+  var byPos={};
+  M.ranked.forEach(function(p){
+    if(drafted[nkey(p.name)]) return;
+    (byPos[p.pos]=byPos[p.pos]||[]).push(p);
+  });
+  x.needs.forEach(function(s){
+    var cands=[];
+    s.el.forEach(function(ps){ cands=cands.concat(byPos[ps]||[]); });
+    cands.sort(function(a,b){ return M.adj[b.id]-M.adj[a.id]; });
+    var best=null, bid=0, scanned=0;
+    for(var i=0;i<cands.length&&scanned<70;i++,scanned++){
+      var p=cands[i], mkt=Math.round(M.adj[p.id]);
+      var W=worth(p,t,M,x,s); if(W.blocked) continue;
+      var cand={name:p.name,pos:p.pos,price:mkt,team:p.team};
+      var aff=Math.max(0,Math.min(x.maxBid,x.left-planReserve(x,cand)));
+      var capStar=HARD_CAP_POS[p.pos]?Infinity:TOP_STAR_CAP;
+      var b=Math.min(aff,Math.round(W.price),capStar);
+      if(b>=mkt){ best=p; bid=b; break; }
+    }
+    out.push({slot:s,best:best,bid:bid,mkt:best?Math.round(M.adj[best.id]):0});
+  });
+  return out;
+}
+
+function renderReach(t,M){
+  var el=$('reach'); if(!el) return;
+  var x=t[me];
+  if(x.open<=0||!x.needs.length){
+    el.innerHTML='<div class="empty">Starting lineup complete.</div>'; return;
+  }
+  var rows=reach(t,M);
+  el.innerHTML='<thead><tr><th>Slot</th><th>Best you can win at market</th>'
+    +'<th style="text-align:right">Market</th><th style="text-align:right">Your ceiling</th></tr></thead><tbody>'
+    +rows.map(function(r){
+      if(!r.best) return '<tr><td><b>'+r.slot.label+'</b></td>'
+        +'<td class="soft" style="font-size:12.5px">nothing at this slot fits your budget — go cheap here</td>'
+        +'<td class="num">—</td><td class="num">—</td></tr>';
+      return '<tr><td><b>'+r.slot.label+'</b></td>'
+        +'<td><span class="pill" style="background:'+(POSC[r.best.pos]||'var(--dim)')+'">'+esc(r.best.pos)+'</span> '
+        +esc(r.best.name)+' <span style="color:var(--dimmer);font-size:12px">'+esc(r.best.team||'')+'</span></td>'
+        +'<td class="num" style="color:var(--dim)">'+money(r.mkt)+'</td>'
+        +'<td class="num" style="color:var(--gold)">'+money(r.bid)+'</td></tr>';
+    }).join('')+'</tbody>';
+}
+
+/* ------------------------- persistence --------------------------- */
+function setSave(status){
+  var map={idle:['var(--dim)','Ready'],saving:['var(--gold)','Saving…'],saved:['var(--sage)','Saved'],failed:['var(--red)','SAVE FAILED']};
+  var m=map[status]||map.idle;
+  var c=$('saveChip'); c.style.color=m[0]; c.style.borderColor=m[0]; $('saveText').textContent=m[1];
+  c.title=(location.protocol==='https:'
+    ? 'Hosted page. Durable storage: '+(window.__persisted||'requesting…')
+    : 'Local file. Storage is browser-managed — export regularly.');
+}
+/* Writes are serialized through a single chain. Without this, two saves
+   fired close together can complete out of order and land a stale, shorter
+   state on top of a newer one -- measured at 40/40 runs losing picks under
+   fast entry with async storage. Superseded writes are skipped rather than
+   queued, so the newest state always wins and always lands last. */
+var writeChain=Promise.resolve(), writeSeq=0;
+function persist(){
+  var payload=JSON.stringify({version:1,savedAt:new Date().toISOString(),config:config,picks:picks});
+  var mine=++writeSeq, n=picks.length;
+  setSave('saving');
+  writeChain=writeChain.then(function(){
+    if(mine!==writeSeq) return;              /* a newer state is already queued */
+    return store.set(STATE_KEY,payload).then(function(){
+      /* rolling snapshots every 5 picks across 5 slots = ~25 picks of history,
+         under separate keys so a bad main write can't take them with it */
+      if(n>0&&n%5===0){
+        return store.set(SNAP+((n/5)%SNAPN),payload).catch(function(){});
+      }
+    }).then(function(){
+      setSave('saved'); banner('savefail',null);
+    });
+  }).catch(function(e){
+    setSave('failed');
+    banner('savefail','bad','Save failed — the browser rejected the write. Your picks are still on screen. Export JSON now, before entering another pick.',[['Export JSON',exportJSON]]);
+  });
+  return writeChain;
+}
+
+/* --------------------------- banners ----------------------------- */
+var bannerState={};
+function banner(id,tone,text,actions){
+  if(!tone){delete bannerState[id];} else {bannerState[id]={tone:tone,text:text,actions:actions||[]};}
+  renderBanners();
+}
+function flash(tone,text){
+  banner('flash',tone,text);
+  clearTimeout(window.__flashT);
+  window.__flashT=setTimeout(function(){banner('flash',null)},4000);
+}
+function renderBanners(){
+  var wrap=$('banners'); wrap.innerHTML='';
+  Object.keys(bannerState).forEach(function(id){
+    var b=bannerState[id];
+    var d=document.createElement('div');
+    d.className='banner '+b.tone;
+    d.appendChild(document.createTextNode(b.text));
+    (b.actions||[]).forEach(function(a){
+      var btn=document.createElement('button'); btn.className='btn sm primary'; btn.textContent=a[0];
+      btn.onclick=a[1]; d.appendChild(btn);
+    });
+    wrap.appendChild(d);
+  });
+}
+function checkNag(){
+  if(picks.length>=10 && picks.length-nagDismissed>=10){
+    banner('nag','warn',picks.length+' picks in and no export since #'+nagDismissed+'. Takes one tap.',
+      [['Export now',exportJSON],['Later',function(){nagDismissed=picks.length;banner('nag',null);}]]);
+  } else banner('nag',null);
+}
+
+/* ---------------------------- exports ---------------------------- */
+function dl(name,text,mime){
+  var b=new Blob([text],{type:mime}), u=URL.createObjectURL(b), a=document.createElement('a');
+  a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
+}
+function stamp(){return new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)}
+function exportJSON(){
+  dl('bmfl-draft-'+stamp()+'.json',JSON.stringify({version:1,savedAt:new Date().toISOString(),config:config,picks:picks},null,2),'application/json');
+  nagDismissed=picks.length; checkNag();
+}
+function exportCSV(){
+  var rows=picks.map(function(p){return {Pick:p.n,Owner:p.owner,Player:p.name,Pos:p.pos,NFLTeam:p.team,Price:p.price,RecordedAt:p.at};});
+  dl('bmfl-draft-'+stamp()+'.csv',toCSV(rows,['Pick','Owner','Player','Pos','NFLTeam','Price','RecordedAt']),'text/csv');
+  nagDismissed=picks.length; checkNag();
+}
+/* Team-by-team view: each owner's roster in slot order, then bench, then a
+   total line. This is the shape you key into Yahoo and the shape people ask
+   for after the draft. Same underlying picks, grouped differently. */
+function exportRosters(){
+  var t=derive(), rows=[];
+  config.owners.forEach(function(o){
+    var x=t[o];
+    START_SLOTS.forEach(function(s){
+      var f=x.filled[s.id];
+      rows.push({Owner:o,Slot:s.label,Player:f?f.name:'(empty)',
+                 Pos:f?f.pos:'',NFLTeam:f?f.team:'',Price:f?f.price:''});
+    });
+    x.bench.forEach(function(p,i){
+      rows.push({Owner:o,Slot:'BN'+(i+1),Player:p.name,Pos:p.pos,
+                 NFLTeam:p.team,Price:p.price});
+    });
+    rows.push({Owner:o,Slot:'TOTAL',Player:x.count+' players',
+               Pos:'',NFLTeam:'',Price:x.spent});
+    rows.push({Owner:'',Slot:'',Player:'',Pos:'',NFLTeam:'',Price:''});
+  });
+  dl('bmfl-rosters-'+stamp()+'.csv',
+     toCSV(rows,['Owner','Slot','Player','Pos','NFLTeam','Price']),'text/csv');
+  nagDismissed=picks.length; checkNag();
+}
+
+/* --------------------------- rendering --------------------------- */
+function renderBoard(){
+  var t=derive(), el=$('board'), html='';
+  var spent=picks.reduce(function(s,p){return s+p.price},0);
+  $('boardStat').textContent=picks.length+' picks · '+money(spent)+' spent of '+money(config.budget*config.owners.length);
+  config.owners.forEach(function(o){
+    var x=t[o]; if(!x) return;
+    var pct=Math.max(0,Math.min(100,(x.left/config.budget)*100));
+    html+='<div class="owner'+(x.over?' over':'')+(expanded===o?' wide':'')+'">'
+      +'<button class="ohead" data-expand="'+esc(o)+'"><span class="oname">'+esc(o)+'</span><span class="ocount">'+x.count+'/'+ROSTER+'</span></button>'
+      +'<div class="track"><div class="fill'+(x.over?' over':'')+'" style="width:'+pct+'%"></div></div>'
+      +'<div class="mrow"><div><div class="micro">Left</div><div class="big">'+money(x.left)+'</div></div>'
+      +'<div style="text-align:right"><div class="micro">Max bid</div><div class="big" style="color:'+(x.maxBid>0?'var(--gold)':'var(--dimmer)')+'">'+(x.open>0?money(x.maxBid):'full')+'</div></div></div>'
+      +'<div class="pips">';
+    START_SLOTS.forEach(function(s){
+      var f=x.filled[s.id];
+      html+='<span class="pip'+(f?' on':'')+'"'+(f?' style="background:'+POSC[f.pos]+'"':'')+' title="'+esc(s.label+': '+(f?f.name:'open'))+'">'+s.label+'</span>';
+    });
+    html+='<span class="pip">BN '+x.bench.length+'/'+BENCH+'</span></div>';
+    if(expanded===o) html+=depthChart(x);
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+/* Full team summary: counts by position, the starting lineup slot by slot,
+   the bench, and where the money went. Everything here is derived from the
+   pick log on each render -- nothing about a team is stored separately. */
+function depthChart(x){
+  var POS=['QB','RB','WR','TE','DEF'];
+  var count={}, spend={};
+  POS.forEach(function(p){count[p]=0;spend[p]=0;});
+  x.picks.forEach(function(p){
+    if(count[p.pos]===undefined){count[p.pos]=0;spend[p.pos]=0;}
+    count[p.pos]++; spend[p.pos]+=p.price;
+  });
+
+  var h='<div class="roster">';
+
+  /* counts by position */
+  h+='<div class="dcHead">By position</div><div class="posGrid">';
+  POS.forEach(function(p){
+    h+='<div class="posCell"><span class="posDot" style="background:'+POSC[p]+'"></span>'
+      +'<span class="posN">'+count[p]+'</span><span class="posL">'+p+'</span>'
+      +'<span class="posS">'+money(spend[p])+'</span></div>';
+  });
+  h+='</div>';
+
+  /* starting lineup, slot by slot */
+  h+='<div class="dcHead">Starting lineup</div>';
+  START_SLOTS.forEach(function(s){
+    var f=x.filled[s.id];
+    h+='<div class="rrow"><span class="rslot">'+s.label+'</span>'
+      +(f?'<span class="rname">'+esc(f.name)+'</span>'
+           +'<span class="rteam">'+esc(f.team||'')+'</span>'
+           +'<span class="rprice">'+money(f.price)+'</span>'
+        :'<span class="rname rempty">— open —</span><span class="rprice"></span>')
+      +'</div>';
+  });
+
+  /* bench */
+  h+='<div class="dcHead">Bench <span class="dcCount">'+x.bench.length+'/'+BENCH+'</span></div>';
+  if(!x.bench.length){
+    h+='<div class="rrow"><span class="rname rempty">Empty</span></div>';
+  } else {
+    x.bench.forEach(function(p){
+      h+='<div class="rrow"><span class="rslot" style="color:'+(POSC[p.pos]||'var(--dimmer)')+'">'+esc(p.pos)+'</span>'
+        +'<span class="rname">'+esc(p.name)+'</span>'
+        +'<span class="rteam">'+esc(p.team||'')+'</span>'
+        +'<span class="rprice">'+money(p.price)+'</span></div>';
+    });
+  }
+
+  /* money summary */
+  var avg=x.count?Math.round(x.spent/x.count):0;
+  var most=x.picks.slice().sort(function(a,b){return b.price-a.price})[0];
+  h+='<div class="dcHead">Spend</div>'
+    +'<div class="rrow"><span class="rname rlbl">Total spent</span><span class="rprice">'+money(x.spent)+'</span></div>'
+    +'<div class="rrow"><span class="rname rlbl">Average per player</span><span class="rprice">'+money(avg)+'</span></div>'
+    +(most?'<div class="rrow"><span class="rname rlbl">Biggest buy</span><span class="rprice">'+esc(most.name)+' '+money(most.price)+'</span></div>':'')
+    +'<div class="rrow"><span class="rname rlbl">Still needs</span><span class="rprice">'
+      +(x.needs&&x.needs.length?x.needs.map(function(s){return s.label}).join(' · '):'starters set')+'</span></div>';
+
+  return h+'</div>';
+}
+
+function renderPool(){
+  var drafted=draftedSet(), q=query.trim().toLowerCase();
+  var list=players.filter(function(p){
+    if(drafted[nkey(p.name)]) return false;
+    if(posFilter!=='ALL'&&p.pos!==posFilter) return false;
+    if(q&&p.name.toLowerCase().indexOf(q)<0&&(p.team||'').toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).sort(function(a,b){
+    var av=isFinite(a.value)?a.value:-1, bv=isFinite(b.value)?b.value:-1;
+    if(av!==bv) return bv-av;
+    var ar=isFinite(a.rank)?a.rank:9999, br=isFinite(b.rank)?b.rank:9999;
+    return ar-br;
+  }).slice(0,250);
+
+  $('poolStat').textContent=players.length?(list.length+' shown'):'no sheet loaded';
+  var tagged=players.filter(function(p){return p.src}).length;
+  $('poolSrc').innerHTML='<span class="bull">&bull;</span><span>'+(playerSrc==='built-in'
+    ? 'Built-in board, <b>'+players.length+' players</b>. Values computed for this league '
+      +'(10 teams, $200, half-PPR, no kicker) from FantasyPros projections (Sep 2) and '
+      +'10-team half-PPR ADP across 3,140 mock drafts (Sep 3). '
+      +(tagged?'<b>PTS/GM blank</b> = ADP-sourced, no projection behind the price. ':'')
+      +'Not in the list? Type any name in the bid panel.'
+    : 'Your imported sheet, <b>'+players.length+' players</b>. Values and projections come '
+      +'from that file as-is. Not in the list? Type any name in the bid panel.')+'</span>';
+  var el=$('pool');
+  if(!players.length){
+    el.innerHTML='<div class="empty"><div style="font-weight:600;color:var(--text);margin-bottom:6px">No player sheet loaded</div>Load a CSV from the header, or skip it entirely — you can type any player\'s name straight into the bid panel and the draft still records perfectly.</div>';
+    return;
+  }
+  if(!list.length){el.innerHTML='<div class="empty">Nothing matches. Clear the search or change the position filter.</div>';return;}
+  if(kbIdx>=list.length) kbIdx=list.length-1;
+  window.__poolList=list;
+  el.innerHTML=list.map(function(p,i){
+    return '<button class="prow'+(sel&&sel.id===p.id?' on':'')+(i===kbIdx?' kb':'')+'" data-pid="'+esc(p.id)+'" style="border-left-color:'+(POSC[p.pos]||'var(--line)')+'">'
+      +'<span class="ppos">'+esc(p.pos)+'</span>'
+      +'<span class="pname">'+esc(p.name)+(p.team?'<span class="pteam">'+esc(p.team)+(p.bye?' · bye '+esc(p.bye):'')+'</span>':'')+'</span>'
+      +'<span class="pproj">'+(isFinite(p.proj)&&p.proj>0?p.proj.toFixed(1):'<span class="pdash">–</span>')+'</span>'
+      +'<span class="pval">'+(isFinite(p.value)&&p.value>0?money(p.value):'<span class="pdash">–</span>')+'</span>'
+      +'</button>';
+  }).join('');
+}
+
+function renderBid(){
+  var t=derive();
+  var slot=$('playerSlot');
+  if(sel){
+    slot.innerHTML='<div class="selchip"><span class="cpos" style="background:'+(POSC[sel.pos]||'var(--dim)')+'">'+esc(sel.pos)+'</span>'
+      +'<span style="font-weight:600">'+esc(sel.name)+'</span><span style="color:var(--dim);font-size:13px">'+esc(sel.team||'')+'</span>'
+      +'<button class="clear" id="clearSel">clear</button></div>';
+    $('clearSel').onclick=function(){sel=null;renderBid();renderPool();updateHint();};
+  } else {
+    var prev=$('freeName')?$('freeName').value:'';
+    slot.innerHTML='<div class="freerow"><input id="freeName" placeholder="Type any player name" value="'+esc(prev)+'" />'
+      +'<select id="freePos">'+['QB','RB','WR','TE','DEF','K'].map(function(p){return '<option'+(p===freePos?' selected':'')+'>'+p+'</option>'}).join('')+'</select></div>';
+    $('freeName').oninput=updateHint;
+    $('freePos').onchange=function(){freePos=this.value;updateHint();};
+  }
+  $('ownerGrid').innerHTML=config.owners.map(function(o){
+    var x=t[o], full=x&&x.open<=0;
+    return '<button class="opick'+(bidOwner===o?' on':'')+'" data-owner="'+esc(o)+'"'+(full?' disabled':'')+'>'
+      +'<span style="font-weight:600">'+esc(o)+'</span><span class="mm">'+(full?'full':money(x?x.maxBid:0))+'</span></button>';
+  }).join('');
+  updateHint();
+}
+
+function currentPlayer(){
+  if(sel) return {name:sel.name,pos:sel.pos,team:sel.team,id:sel.id};
+  var n=$('freeName')?$('freeName').value.trim():'';
+  return n?{name:n,pos:freePos,team:'',id:null}:null;
+}
+
+function validate(){
+  var t=derive(), p=currentPlayer(), price=Number($('price').value);
+  if(!p) return 'Pick a player from the pool, or type a name.';
+  if(!p.pos) return 'Set a position for this player.';
+  if(!bidOwner) return 'Choose the winning owner.';
+  if(!$('price').value||isNaN(price)) return 'Enter the winning bid.';
+  if(price!==Math.floor(price)) return 'Bids must be whole dollars.';
+  if(price<config.minBid) return 'Minimum bid is '+money(config.minBid)+'.';
+  var x=t[bidOwner];
+  if(!x) return 'Unknown owner.';
+  if(x.open<=0) return bidOwner+' has a full roster ('+ROSTER+').';
+  if(price>x.maxBid) return 'Over max bid. '+bidOwner+' can spend '+money(x.maxBid)+' and still fill '+(x.open-1)+' more slot'+(x.open-1===1?'':'s')+'.';
+  if(draftedSet()[nkey(p.name)]) return p.name+' is already drafted.';
+  return null;
+}
+
+function updateHint(){
+  var v=validate(), p=currentPlayer(), t=derive();
+  $('record').disabled=!!v;
+  $('hint').className=v?'':'ready';
+  $('hint').textContent=v||('Ready — '+p.name+' to '+bidOwner+' for '+money(Number($('price').value))+'.');
+  var m=$('bidmath');
+  if(bidOwner&&t[bidOwner]){
+    var x=t[bidOwner];
+    m.textContent=bidOwner+': '+money(x.left)+' left · '+x.open+' slots open · max bid '+money(x.maxBid)
+      +(x.needs.length?' · still needs '+x.needs.map(function(s){return s.label}).join(', '):'');
+  } else m.textContent='';
+}
+
+function renderLog(){
+  var el=$('log');
+  if(!picks.length){el.innerHTML='<div class="empty">No picks recorded yet.</div>';return;}
+  el.innerHTML=picks.slice().reverse().map(function(p){
+    if(editId===p.id){
+      /* inline edit: change the owner or the price without unwinding the pick */
+      return '<div class="lrow lrowEdit"><span class="lnum">'+p.n+'</span>'
+        +'<span class="lname">'+esc(p.name)+'</span>'
+        +'<select class="editOwner" id="editOwner">'+config.owners.map(function(o){
+            return '<option'+(o===p.owner?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select>'
+        +'<span class="editPriceWrap">$<input class="editPrice" id="editPrice" type="number" min="'+config.minBid+'" value="'+p.price+'"></span>'
+        +'<button class="yes" data-save="'+esc(p.id)+'">save</button>'
+        +'<button class="btn sm" data-canceledit="1">cancel</button></div>';
+    }
+    var tail=confirmId===p.id
+      ? '<span style="display:flex;gap:6px"><button class="yes" data-remove="'+esc(p.id)+'">remove</button><button class="btn sm" data-cancel="1">keep</button></span>'
+      : '<span style="display:flex;gap:4px"><button class="lx" data-edit="'+esc(p.id)+'" title="Edit owner or price">&#9998;</button>'
+        +'<button class="lx" data-confirm="'+esc(p.id)+'" title="Remove this pick">×</button></span>';
+    return '<div class="lrow"><span class="lnum">'+p.n+'</span>'
+      +'<span class="cpos" style="background:'+(POSC[p.pos]||'var(--dim)')+';font-size:10px">'+esc(p.pos)+'</span>'
+      +'<span class="lname">'+esc(p.name)+'</span>'
+      +'<span class="lowner">'+esc(p.owner)+'</span>'
+      +'<span class="lprice">'+money(p.price)+'</span>'+tail+'</div>';
+  }).join('');
+}
+
+function renderAdvisor(){
+  /* Guarded: the tracker must survive any failure in here. */
+  try{
+    var t=derive(), M=model();
+    renderOwnerSelect();
+    if(!M){
+      $('metrics').innerHTML='<div class="metric"><div class="micro">Advisor</div>'
+        +'<div class="msub">Load a player sheet with dollar values to enable pricing.</div></div>';
+      ['budgetPlan','standings','noms','pressure'].forEach(function(id){$(id).innerHTML='';});
+      $('lookup').innerHTML='<div class="empty">No player values loaded.</div>';
+      $('mine').innerHTML=''; $('reach').innerHTML=''; $('method').innerHTML='';
+      return;
+    }
+    renderMetrics(M); renderBudget(t,M); renderStandings(t,M);
+    renderNoms(t,M); renderPressure(t,M); renderLookup(t,M);
+    renderMine(t,M); renderReach(t,M); renderMethod(M);
+  }catch(e){
+    try{
+      $('lookup').innerHTML='<div class="advErr">Advisor hit an error: '+esc(String(e&&e.message||e))
+        +'. Your picks and the save path are unaffected — keep drafting. Reload to reset the panels.</div>';
+    }catch(_){}
+  }
+}
+function renderOwnerSelect(){
+  var s=$('mePick');
+  if(s.options.length!==config.owners.length||s.value!==me){
+    s.innerHTML=config.owners.map(function(o){
+      return '<option'+(o===me?' selected':'')+'>'+esc(o)+'</option>';}).join('');
+  }
+}
+function renderAll(){ renderBoard(); renderPool(); renderBid(); renderLog(); checkNag(); renderAdvisor(); }
+
+/* ---------------------------- actions ---------------------------- */
+function recordPick(){
+  if(validate()) return;
+  var p=currentPlayer();
+  picks.push({
+    id:Date.now()+'-'+Math.random().toString(36).slice(2,8),
+    n:picks.length+1, at:new Date().toISOString(),
+    name:p.name, pos:p.pos, team:p.team, playerId:p.id,
+    owner:bidOwner, price:Number($('price').value)
+  });
+  var msg=p.name+' → '+bidOwner+' for '+money(Number($('price').value));
+  sel=null; bidOwner=null; $('price').value=''; query=''; $('search').value='';
+  persist(); renderAll(); flash('ok',msg);
+}
+function savePick(id){
+  var o=$('editOwner')?$('editOwner').value:null;
+  var pr=$('editPrice')?Math.round(Number($('editPrice').value)):null;
+  if(!o||!isFinite(pr)||pr<config.minBid){ flash('bad','Price must be at least '+money(config.minBid)+'.'); return; }
+  picks=picks.map(function(p){ return p.id===id?Object.assign({},p,{owner:o,price:pr}):p; });
+  editId=null; persist(); renderAll(); flash('ok','Pick updated.');
+}
+function removePick(id){
+  picks=picks.filter(function(p){return p.id!==id}).map(function(p,i){p.n=i+1;return p});
+  confirmId=null; persist(); renderAll();
+}
+
+/* ----------------------------- wiring ---------------------------- */
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-panel],[data-close],[data-pid],[data-owner],[data-expand],[data-confirm],[data-remove],[data-cancel],[data-pos],[data-edit],[data-save],[data-canceledit]');
+  if(!el) return;
+  if(el.dataset.panel){ togglePanel(el.dataset.panel); }
+  else if(el.dataset.close!==undefined){ closePanels(); }
+  else if(el.dataset.pid){
+    var p=players.filter(function(x){return x.id===el.dataset.pid})[0];
+    if(p){sel=p;if($('curBid'))$('curBid').value='';clearFlex();renderPool();renderBid();renderAdvisor();var f=$('curBid')||$('price'); f.focus(); if(f.select) f.select();}
+  }
+  else if(el.dataset.owner){ bidOwner=el.dataset.owner; renderBid(); renderAdvisor(); $('price').focus(); }
+  else if(el.dataset.expand){ expanded=(expanded===el.dataset.expand?null:el.dataset.expand); renderBoard(); }
+  else if(el.dataset.confirm){ confirmId=el.dataset.confirm; renderLog(); }
+  else if(el.dataset.remove){ removePick(el.dataset.remove); }
+  else if(el.dataset.cancel){ confirmId=null; renderLog(); }
+  else if(el.dataset.edit){ editId=el.dataset.edit; confirmId=null; renderLog();
+                            var f=$('editPrice'); if(f){ f.focus(); f.select(); } }
+  else if(el.dataset.save){ savePick(el.dataset.save); }
+  else if(el.dataset.canceledit){ editId=null; renderLog(); }
+  else if(el.dataset.pos){ posFilter=el.dataset.pos; renderPosRow(); renderPool(); }
+});
+
+function renderPosRow(){
+  $('posRow').innerHTML=['ALL','QB','RB','WR','TE','DEF'].map(function(p){
+    return '<button class="posbtn'+(posFilter===p?' on':'')+'" data-pos="'+p+'"'
+      +(posFilter===p&&POSC[p]?' style="border-color:'+POSC[p]+'"':'')+'>'+p+'</button>';
+  }).join('');
+}
+
+function togglePanel(name){
+  var open=!$('panel-'+name).classList.contains('hidden');
+  closePanels();
+  if(!open){
+    $('panel-'+name).classList.remove('hidden');
+    if(name==='setup'){
+      $('cfgBudget').value=config.budget; $('cfgMin').value=config.minBid;
+      $('cfgOwners').value=config.owners.join('\n');
+      $('rosterNote').textContent='Roster: '+START_SLOTS.map(function(s){return s.label}).join(' · ')+' + '+BENCH+' bench = '+ROSTER+' players. No kicker.';
+    }
+    if(name==='sync'){
+      if($('syncInfo')) $('syncInfo').textContent=picks.length+' picks recorded';
+      $('restoreWarn').textContent='Paste a sync code from whoever is running the draft, or an exported JSON file. Either one replaces the current draft entirely.'
+        +(picks.length?' You currently have '+picks.length+' picks recorded — export them first if you want to keep them.':'');
+    }
+  }
+}
+function closePanels(){['import','sync','setup'].forEach(function(n){$('panel-'+n).classList.add('hidden')})}
+
+$('search').oninput=function(){query=this.value;kbIdx=-1;renderPool();};
+$('restoreText').oninput=function(){
+  if(pendingRestore){ pendingRestore=null;
+    $('btnDoRestore').textContent='Load this draft';
+    $('btnDoRestore').classList.remove('danger'); }
+};
+$('price').oninput=updateHint;
+$('price').onkeydown=function(e){if(e.key==='Enter')recordPick();};
+$('record').onclick=recordPick;
+$('mePick').onchange=function(){me=this.value;renderAll();};
+$('curBid').oninput=function(){renderAdvisor();};
+$('btnFlex').onclick=function(){
+  flexOn=!flexOn;
+  this.classList.toggle('on',flexOn);
+  this.textContent=flexOn?'Flex ON':'Flex';
+  renderAdvisor();
+};
+function clearFlex(){
+  flexOn=false; var b=$('btnFlex');
+  if(b){ b.classList.remove('on'); b.textContent='Flex'; }
+}
+$('btnClearBid').onclick=function(){$('curBid').value='';renderAdvisor();};
+$('planStars').onchange=function(){plan.stars=Math.max(0,Math.min(9,Number(this.value)||0));renderAdvisor();};
+$('planSecond').onchange=function(){plan.second=Math.max(0,Math.min(4,Number(this.value)||0));renderAdvisor();};
+$('planMids').onchange=function(){plan.mids=Math.max(0,Math.min(8,Number(this.value)||0));renderAdvisor();};
+$('planHeat').onchange=function(){plan.heat=Math.max(0.9,Math.min(1.5,(Number(this.value)||110)/100));renderAdvisor();};
+$('btnJSON').onclick=exportJSON;
+$('btnCSV').onclick=exportCSV;
+$('btnRosters').onclick=exportRosters;
+$('btnLoadCSV').onclick=function(){ingestCSV($('csvPaste').value)};
+$('fileIn').onchange=function(e){
+  var f=e.target.files&&e.target.files[0]; if(!f) return;
+  var r=new FileReader(); r.onload=function(){ingestCSV(String(r.result))}; r.readAsText(f);
+};
+$('btnCopy').onclick=function(){
+  var text=JSON.stringify({version:1,config:config,picks:picks},null,2);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){flash('ok','Draft copied to clipboard.')})
+      .catch(function(){flash('warn','Clipboard blocked. Use Export JSON instead.')});
+  } else flash('warn','Clipboard unavailable. Use Export JSON instead.');
+  nagDismissed=picks.length; checkNag();
+};
+$('btnShareTop').onclick=$('btnShare2').onclick=function(){
+  var code=encodeSync();
+  var done=function(){flash('ok','Sync code copied ('+picks.length+' picks, '+code.length+' chars). Paste it to the league.')};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done).catch(function(){
+      togglePanel('sync'); $('restoreText').value=code;
+      flash('warn','Clipboard blocked. The code is in the box below — copy it manually.');
+    });
+  } else {
+    togglePanel('sync'); $('restoreText').value=code;
+    flash('warn','Clipboard unavailable. The code is in the box below — copy it manually.');
+  }
+};
+$('btnDoRestore').onclick=function(){
+  var text=$('restoreText').value.trim();
+  try{
+    var parsed=decodeSync(text);
+    if(!parsed){
+      var j=JSON.parse(text);
+      if(!j||!Array.isArray(j.picks)) throw new Error('Not a sync code or a draft export.');
+      parsed={config:Object.assign({},DEFAULT_CFG,j.config||{}),picks:j.picks};
+    }
+    /* Loading replaces rather than merges, so a code from earlier in the draft
+       silently rolls you back. Make that a decision, not an accident. */
+    if(!pendingRestore && parsed.picks.length < picks.length){
+      pendingRestore=parsed;
+      $('btnDoRestore').textContent='Yes, discard '+(picks.length-parsed.picks.length)+' picks';
+      $('btnDoRestore').classList.add('danger');
+      flash('warn','That code has '+parsed.picks.length+' picks — you currently have '+picks.length
+        +'. Loading it discards the newest '+(picks.length-parsed.picks.length)+'. Click again to confirm.');
+      return;
+    }
+    if(pendingRestore) parsed=pendingRestore;
+    config=parsed.config; picks=parsed.picks;
+    pendingRestore=null;
+    $('btnDoRestore').textContent='Load this draft';
+    $('btnDoRestore').classList.remove('danger');
+    persist(); closePanels(); $('restoreText').value='';
+    renderAll(); flash('ok','Loaded '+picks.length+' picks.');
+  }catch(err){ flash('bad','Could not read that: '+err.message); }
+};
+['cfgBudget','cfgMin'].forEach(function(id){
+  $(id).onchange=function(){
+    config.budget=Number($('cfgBudget').value)||0;
+    config.minBid=Number($('cfgMin').value)||1;
+    persist(); renderAll();
+  };
+});
+$('cfgOwners').onblur=function(){
+  var list=this.value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+  if(list.length){config.owners=list;persist();renderAll();}
+};
+/* ---- keyboard route. Everything here duplicates an existing click target;
+   nothing is keyboard-only and nothing removes a mouse path. ---- */
+function kbPickPlayer(){
+  var list=window.__poolList||[];
+  if(kbIdx<0||kbIdx>=list.length) return false;
+  sel=list[kbIdx]; kbIdx=-1;
+  renderPool(); renderBid();
+  var g=$('ownerGrid'); var first=g&&g.querySelector('button:not([disabled])');
+  if(first) first.focus();
+  return true;
+}
+function kbOwnerButtons(){
+  var g=$('ownerGrid'); if(!g) return [];
+  return Array.prototype.slice.call(g.querySelectorAll('button:not([disabled])'));
+}
+document.addEventListener('keydown',function(e){
+  var el=e.target, tag=(el.tagName||'').toLowerCase();
+  var typing=(tag==='input'||tag==='select'||tag==='textarea');
+
+  /* focus the search box from anywhere */
+  if(e.key==='/'&&!typing){ e.preventDefault(); $('search').focus(); $('search').select(); return; }
+
+  /* move through the pool while the search box has focus */
+  if(el===$('search')&&(e.key==='ArrowDown'||e.key==='ArrowUp')){
+    e.preventDefault();
+    var n=(window.__poolList||[]).length; if(!n) return;
+    kbIdx=e.key==='ArrowDown'?Math.min(n-1,kbIdx+1):Math.max(0,kbIdx-1);
+    renderPool();
+    var row=document.querySelector('.prow.kb'); if(row&&row.scrollIntoView) row.scrollIntoView({block:'nearest'});
+    return;
+  }
+  if(el===$('search')&&e.key==='Enter'){ e.preventDefault(); if(kbIdx<0) kbIdx=0; kbPickPlayer(); return; }
+
+  /* owner grid: digits pick an owner outright, arrows walk it */
+  if(el.closest&&el.closest('#ownerGrid')){
+    var btns=kbOwnerButtons();
+    if(/^[0-9]$/.test(e.key)){
+      var i=(e.key==='0')?9:Number(e.key)-1;
+      if(btns[i]){ e.preventDefault(); btns[i].click(); }
+      return;
+    }
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+      e.preventDefault();
+      var cur=btns.indexOf(el), d=e.key==='ArrowRight'?1:-1;
+      var nx=btns[(cur+d+btns.length)%btns.length]; if(nx) nx.focus();
+      return;
+    }
+  }
+
+  /* digits pick an owner from the price box too, so you never leave it */
+  if(el===$('price')&&e.altKey&&/^[0-9]$/.test(e.key)){
+    var bs=kbOwnerButtons(), k=(e.key==='0')?9:Number(e.key)-1;
+    if(bs[k]){ e.preventDefault(); bs[k].click(); $('price').focus(); }
+    return;
+  }
+
+  if(e.key==='Escape'&&!typing){ sel=null; kbIdx=-1; editId=null; renderAll(); }
+},true);
+
+window.addEventListener('beforeunload',function(e){
+  if(picks.length&&picks.length!==nagDismissed){e.preventDefault();e.returnValue='';}
+});
+
+
+/* ---- app chrome: tabs and the gear menu ---- */
+document.addEventListener('click',function(e){
+  var tb=e.target.closest('[data-tab]');
+  if(tb){
+    var id=tb.getAttribute('data-tab');
+    ['draft','guide'].forEach(function(k){
+      var el=$('tab-'+k); if(el) el.classList.toggle('hidden',k!==id);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(b){
+      b.classList.toggle('on',b.getAttribute('data-tab')===id);
+    });
+    window.scrollTo(0,0);
+    return;
+  }
+  var g=e.target.closest('#btnGear');
+  if(g){ e.stopPropagation(); $('gearMenu').classList.toggle('hidden');
+         $('btnGear').classList.toggle('on',!$('gearMenu').classList.contains('hidden')); return; }
+  if(!e.target.closest('#gearMenu')){
+    $('gearMenu').classList.add('hidden'); $('btnGear').classList.remove('on');
+  } else {
+    setTimeout(function(){ $('gearMenu').classList.add('hidden');
+                           $('btnGear').classList.remove('on'); },0);
+  }
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){ closePanels(); $('gearMenu').classList.add('hidden'); $('btnGear').classList.remove('on'); }
+});
+
+/* ------------------------------ boot ----------------------------- */
+(function boot(){
+  /* On a hosted https origin this asks Chrome to mark our storage persistent,
+     which takes it out of the pool the browser evicts under disk pressure.
+     Unavailable on file:// pages, where it simply does nothing. */
+  try{
+    if(navigator.storage&&navigator.storage.persisted){
+      navigator.storage.persisted().then(function(already){
+        if(already){ window.__persisted='granted'; return; }
+        if(navigator.storage.persist)
+          navigator.storage.persist().then(function(ok){ window.__persisted=ok?'granted':'denied'; });
+      }).catch(function(){});
+    }
+  }catch(e){}
+  renderPosRow();
+  Promise.all([store.get(STATE_KEY),store.get(PLAYERS_KEY)]).then(function(r){
+    try{ if(r[0]){var s=JSON.parse(r[0]); if(s.config) config=Object.assign({},DEFAULT_CFG,s.config); if(Array.isArray(s.picks)) picks=s.picks;} }catch(e){}
+    try{ if(r[1]){var p=JSON.parse(r[1]); if(Array.isArray(p)&&p.length){players=p;playerSrc='imported';} } }catch(e){}
+    if(!players.length){ players=builtinPlayers(); playerSrc='built-in'; }
+    $('leagueName').textContent=config.leagueName;
+    nagDismissed=picks.length;
+    renderAll(); setSave(picks.length?'saved':'idle');
+  });
+})();
+</script>
+</body>
+</html>

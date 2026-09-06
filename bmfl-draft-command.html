@@ -1916,19 +1916,27 @@ function reach(t,M){
     if(drafted[nkey(p.name)]) return;
     (byPos[p.pos]=byPos[p.pos]||[]).push(p);
   });
+  /* Each slot claims its player, so the panel lists nine different names
+     instead of naming the same back for both RB slots and the same receiver
+     for all three WRs plus the flex. Slots fill in roster order: the first
+     RB slot takes the best back, the second takes the next, and the flex
+     takes the best of whoever is left. */
+  var claimed={};
   x.needs.forEach(function(s){
     var cands=[];
     s.el.forEach(function(ps){ cands=cands.concat(byPos[ps]||[]); });
     cands.sort(function(a,b){ return M.adj[b.id]-M.adj[a.id]; });
     var best=null, bid=0, scanned=0;
     for(var i=0;i<cands.length&&scanned<70;i++,scanned++){
-      var p=cands[i], mkt=Math.round(M.adj[p.id]);
+      var p=cands[i];
+      if(claimed[p.id]) continue;
+      var mkt=Math.round(M.adj[p.id]);
       var W=worth(p,t,M,x,s); if(W.blocked) continue;
       var cand={name:p.name,pos:p.pos,price:mkt,team:p.team};
       var aff=Math.max(0,Math.min(x.maxBid,x.left-planReserve(x,cand)));
       var capStar=HARD_CAP_POS[p.pos]?Infinity:TOP_STAR_CAP;
       var b=Math.min(aff,Math.round(W.price),capStar);
-      if(b>=mkt){ best=p; bid=b; break; }
+      if(b>=mkt){ best=p; bid=b; claimed[p.id]=1; break; }
     }
     out.push({slot:s,best:best,bid:bid,mkt:best?Math.round(M.adj[best.id]):0});
   });
